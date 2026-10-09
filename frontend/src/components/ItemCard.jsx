@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { CAT_MAP } from "@/lib/categories";
 import { useI18n } from "@/context/I18nContext";
 import { MapPin, Clock, AlertTriangle, Beaker } from "lucide-react";
@@ -26,14 +26,19 @@ function fmtDate(iso, lang) {
 
 export default function ItemCard({ item, selected, onClick }) {
   const { lang, t } = useI18n();
+  const [imageFailed, setImageFailed] = useState(false);
   const cat = CAT_MAP[item.category];
   const Icon = cat?.icon;
   const title = lang === "zh" && item.titleZh ? item.titleZh : item.title;
   const summary = lang === "zh" && item.summaryZh ? item.summaryZh : item.summary;
   const date = fmtDate(item.startsAt || item.publishedAt, lang);
   const dist = fmtDistance(item.distanceMeters, t);
-  const hasImage = item.imageUrl && !item.imageIsFallback;
+  const hasImage = item.imageUrl && !item.imageIsFallback && !imageFailed;
   const approx = ["city", "region", "neighborhood"].includes(item.locationPrecision);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [item.imageUrl]);
 
   return (
     <button
@@ -59,7 +64,13 @@ export default function ItemCard({ item, selected, onClick }) {
         }
       >
         {hasImage ? (
-          <img src={item.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+          <img
+            src={item.imageUrl}
+            alt=""
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+          />
         ) : (
           <div className="w-full h-full grid place-items-center">
             {Icon && <Icon size={26} style={{ color: cat.color, opacity: 0.75 }} />}

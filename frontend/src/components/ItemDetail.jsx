@@ -41,60 +41,81 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
   const { lang, t } = useI18n();
   const { user, setAuthOpen } = useAuth();
   const [showZh, setShowZh] = useState(lang === "zh");
-  const [translatedTitle, setTranslatedTitle] = useState(null);
-  const [translatedSummary, setTranslatedSummary] = useState(null);
+  const [translation, setTranslation] = useState({ itemId: null, title: null, summary: null });
   const [translating, setTranslating] = useState(false);
   const [ttsState, setTtsState] = useState("idle");
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     setShowZh(lang === "zh");
   }, [item?.id, lang]);
 
   useEffect(() => {
+    setImageFailed(false);
+  }, [item?.imageUrl]);
+
+  useEffect(() => {
     return () => ttsStop();
   }, [item?.id]);
 
   useEffect(() => {
+    let cancelled = false;
     const translate = async () => {
       if (!item) return;
       if (!showZh) {
-        setTranslatedTitle(null);
-        setTranslatedSummary(null);
+        setTranslating(false);
         return;
       }
       if (item.titleZh && item.summaryZh) {
-        setTranslatedTitle(item.titleZh);
-        setTranslatedSummary(item.summaryZh);
+        setTranslation({ itemId: item.id, title: item.titleZh, summary: item.summaryZh });
+        setTranslating(false);
         return;
       }
       if (!item.summary && !item.title) return;
+      // Associate every translation with its item. This prevents a slow
+      // response for the previously selected card from replacing new content.
+      setTranslation({
+        itemId: item.id,
+        title: item.titleZh || null,
+        summary: item.summaryZh || null,
+      });
       setTranslating(true);
       try {
         const [tTitle, tSum] = await Promise.all([
-          contentApi.translate(item.title || "", "zh"),
-          contentApi.translate(item.summary || "", "zh"),
+          item.titleZh
+            ? Promise.resolve({ text: item.titleZh })
+            : contentApi.translate(item.title || "", "zh"),
+          item.summaryZh || !item.summary
+            ? Promise.resolve({ text: item.summaryZh || "" })
+            : contentApi.translate(item.summary, "zh"),
         ]);
-        setTranslatedTitle(tTitle.text);
-        setTranslatedSummary(tSum.text);
+        if (!cancelled) {
+          setTranslation({ itemId: item.id, title: tTitle.text, summary: tSum.text });
+        }
       } catch {
-        setTranslatedTitle(item.title);
-        setTranslatedSummary(item.summary);
+        if (!cancelled) {
+          setTranslation({ itemId: item.id, title: item.title, summary: item.summary });
+        }
       } finally {
-        setTranslating(false);
+        if (!cancelled) setTranslating(false);
       }
     };
     translate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item?.id, showZh]);
+    return () => {
+      cancelled = true;
+    };
+  }, [item, showZh]);
 
   if (!item) return null;
   const cat = CAT_MAP[item.category];
   const Icon = cat?.icon;
-  const hasImage = item.imageUrl && !item.imageIsFallback;
+  const hasImage = item.imageUrl && !item.imageIsFallback && !imageFailed;
 
-  const titleDisplay = showZh ? translatedTitle || item.title : item.title;
+  const currentTranslation = translation.itemId === item.id ? translation : null;
+
+  const titleDisplay = showZh ? currentTranslation?.title || item.title : item.title;
   const summaryDisplay = showZh
-    ? translatedSummary || item.summary || ""
+    ? currentTranslation?.summary || item.summary || ""
     : item.summary || "";
 
   const isFav = favorites?.has(item.externalId);
@@ -157,7 +178,12 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
       <div className="relative shrink-0">
         {hasImage ? (
           <div className="h-40 sm:h-48 w-full overflow-hidden rounded-t-3xl">
-            <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+            <img
+              src={item.imageUrl}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={() => setImageFailed(true)}
+            />
           </div>
         ) : (
           <div
@@ -194,7 +220,7 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
           <h2 data-testid="detail-title" className="font-display text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
             {titleDisplay}
           </h2>
-          {showZh && translatedTitle && translatedTitle !== item.title && (
+          {showZh && currentTranslation?.title && currentTranslation.title !== item.title && (
             <p className="text-xs text-zinc-500 mt-1">
               {t("original_name")}: <span className="text-zinc-700">{item.title}</span>
             </p>
