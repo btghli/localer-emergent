@@ -24,45 +24,47 @@ function DesktopHeader() {
 
   return (
     <header className="hidden md:flex fixed top-0 inset-x-0 h-16 z-50 pointer-events-none">
-      <div className="w-full flex items-center justify-between px-4">
-        <Link
-          to="/"
-          data-testid="brand-logo"
-          className="pointer-events-auto inline-flex items-center gap-2 bg-white/90 backdrop-blur-xl rounded-full px-3 py-1.5 shadow-sm border border-white/70"
-        >
-          <div className="w-7 h-7 rounded-full bg-zinc-900 grid place-items-center">
-            <MapPinned size={14} className="text-white" />
-          </div>
-          <span className="font-display font-bold text-zinc-900">{t("app_name")}</span>
-        </Link>
+      <div className="w-full flex items-center justify-between px-4 gap-4">
+        <div className="pointer-events-auto flex items-center gap-2 min-w-0">
+          <Link
+            to="/"
+            data-testid="brand-logo"
+            className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-xl rounded-full px-3 py-1.5 shadow-sm border border-white/70 shrink-0"
+          >
+            <div className="w-7 h-7 rounded-full bg-zinc-900 grid place-items-center">
+              <MapPinned size={14} className="text-white" />
+            </div>
+            <span className="font-display font-bold text-zinc-900">{t("app_name")}</span>
+          </Link>
 
-        <nav className="pointer-events-auto bg-white/90 backdrop-blur-xl rounded-full px-1 py-1 shadow-sm border border-white/70 flex items-center gap-0.5">
-          {[
-            { to: "/", label: t("explore"), icon: Compass, testid: "nav-explore-desktop" },
-            { to: "/favorites", label: t("favorites"), icon: Heart, testid: "nav-favorites-desktop" },
-            { to: "/account", label: t("account"), icon: UserRound, testid: "nav-account-desktop" },
-          ].map((n) => {
-            const Icon = n.icon;
-            return (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                end={n.to === "/"}
-                data-testid={n.testid}
-                className={({ isActive }) =>
-                  `inline-flex items-center gap-1.5 text-sm px-3 h-9 rounded-full transition-colors ${
-                    isActive
-                      ? "bg-zinc-900 text-white"
-                      : "text-zinc-700 hover:bg-zinc-100"
-                  }`
-                }
-              >
-                <Icon size={14} />
-                <span>{n.label}</span>
-              </NavLink>
-            );
-          })}
-        </nav>
+          <nav className="bg-white/90 backdrop-blur-xl rounded-full px-1 py-1 shadow-sm border border-white/70 flex items-center gap-0.5">
+            {[
+              { to: "/", label: t("explore"), icon: Compass, testid: "nav-explore-desktop" },
+              { to: "/favorites", label: t("favorites"), icon: Heart, testid: "nav-favorites-desktop" },
+              { to: "/account", label: t("account"), icon: UserRound, testid: "nav-account-desktop" },
+            ].map((n) => {
+              const Icon = n.icon;
+              return (
+                <NavLink
+                  key={n.to}
+                  to={n.to}
+                  end={n.to === "/"}
+                  data-testid={n.testid}
+                  className={({ isActive }) =>
+                    `inline-flex items-center gap-1.5 text-sm px-3 h-9 rounded-full transition-colors ${
+                      isActive
+                        ? "bg-zinc-900 text-white"
+                        : "text-zinc-700 hover:bg-zinc-100"
+                    }`
+                  }
+                >
+                  <Icon size={14} />
+                  <span>{n.label}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
+        </div>
 
         <div className="pointer-events-auto flex items-center gap-2">
           <DropdownMenu>

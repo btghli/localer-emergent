@@ -258,14 +258,14 @@ export default function Explore() {
         <SearchBar onPick={onPickPlace} onRecenter={onRecenter} />
       </div>
 
-      {/* "Search this area" button */}
+      {/* "Search this area" button — top center, aligned with header */}
       {showMoveBtn && (
-        <div className="fixed top-16 md:top-20 left-1/2 md:left-[432px] -translate-x-1/2 md:translate-x-0 z-[45] pointer-events-auto">
+        <div className="fixed top-16 md:top-3 left-1/2 -translate-x-1/2 z-[55] pointer-events-auto">
           <Button
             type="button"
             onClick={onSearchArea}
             data-testid="search-this-area-btn"
-            className="rounded-full bg-zinc-900 hover:bg-zinc-800 text-white shadow-lg h-10 px-4"
+            className="rounded-full bg-zinc-900 hover:bg-zinc-800 text-white shadow-[0_8px_24px_rgba(0,0,0,0.25)] h-10 px-4"
           >
             <Search size={14} className="mr-1.5" />
             {t("search_this_area")}

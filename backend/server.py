@@ -390,7 +390,8 @@ async def _osm_nearby(lat: float, lng: float, radius_m: int = 3000) -> List[Near
 
 
 def _demo_events_news(lat: float, lng: float) -> List[NearbyItem]:
-    """Clearly-labeled demo seeded data for events and news."""
+    """Clearly-labeled demo seeded data for events and news.
+    sourceUrl deep-links to a Google query so users can quickly find real local alternatives."""
     now = datetime.now(timezone.utc)
     seeds = [
         # events
@@ -403,6 +404,17 @@ def _demo_events_news(lat: float, lng: float) -> List[NearbyItem]:
     ]
     items = []
     for idx, (cat, title, summ, dlat, dlng, prov, src) in enumerate(seeds):
+        if cat == "event":
+            # Try to deep-link into real event discovery platforms + a Google fallback.
+            from urllib.parse import quote_plus
+            q = quote_plus(f"{title} events near {lat:.3f},{lng:.3f}")
+            source_url = f"https://www.google.com/search?q={q}"
+            source_name = "Find events online"
+        else:
+            from urllib.parse import quote_plus
+            q = quote_plus(f"{title} local news")
+            source_url = f"https://news.google.com/search?q={q}"
+            source_name = "Google News"
         it = NearbyItem(
             id=str(uuid.uuid4()),
             externalId=f"{prov}-{idx}",
@@ -412,8 +424,8 @@ def _demo_events_news(lat: float, lng: float) -> List[NearbyItem]:
             latitude=lat + dlat,
             longitude=lng + dlng,
             locationPrecision="neighborhood" if cat == "news" else "venue",
-            sourceName=src,
-            sourceUrl=None,
+            sourceName=source_name,
+            sourceUrl=source_url,
             provider=prov,
             fetchedAt=_now_iso(),
             startsAt=(now + timedelta(days=2 + idx)).isoformat() if cat == "event" else None,
