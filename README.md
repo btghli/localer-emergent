@@ -20,9 +20,9 @@ dates, coordinates, sources, or URLs.
 | Events     | Ticketmaster Discovery API      | `TICKETMASTER_API_KEY`| **Off** until key  |
 | News       | GDELT 2.1 DOC API               | — (public, throttled) | Yes                |
 
-A missing API key does NOT cause errors — the provider gracefully returns an
-empty list and logs the condition. One failing provider never breaks the
-other categories.
+A missing API key disables that provider and is exposed through
+`GET /api/providers`, allowing the UI to mark its category unavailable. One
+failing provider never breaks the other categories.
 
 ## Required environment variables
 
@@ -99,16 +99,25 @@ generic photo depicts the item.
 
 ```bash
 cp backend/.env.example backend/.env
-# Fill MONGO_URL, DB_NAME, JWT_SECRET, EMERGENT_LLM_KEY
+cp frontend/.env.example frontend/.env
+# Fill MONGO_URL, DB_NAME and JWT_SECRET; add EMERGENT_LLM_KEY for AI features.
 # Optionally add TICKETMASTER_API_KEY
 
-cd backend && pip install -r requirements.txt
-cd ../frontend && yarn install
+python3 -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.txt
+npx -y yarn@1.22.22 --cwd frontend install --frozen-lockfile
 ```
 
 Backend runs on `:8001`, frontend on `:3000`. All backend routes are prefixed
 with `/api`. The frontend reads `REACT_APP_BACKEND_URL` from
 `frontend/.env`.
+
+Start the two development processes in separate terminals:
+
+```bash
+backend/.venv/bin/uvicorn server:app --app-dir backend --reload --port 8001
+npx -y yarn@1.22.22 --cwd frontend start
+```
 
 ## Production notes
 
