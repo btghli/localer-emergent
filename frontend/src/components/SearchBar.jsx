@@ -65,7 +65,7 @@ export default function SearchBar({ onPick }) {
           onChange={(e) => setQ(e.target.value)}
           onFocus={() => results.length && setOpen(true)}
           placeholder={t("search_placeholder")}
-          className="pl-9 pr-9 h-11 rounded-full bg-white/90 backdrop-blur-xl border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.08)] focus-visible:ring-zinc-900"
+          className="pl-9 pr-9 h-11 text-sm rounded-full bg-white/90 backdrop-blur-xl border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.08)] focus-visible:ring-zinc-900 truncate placeholder:truncate"
           data-testid="global-search-input"
           aria-label={t("search_placeholder")}
         />

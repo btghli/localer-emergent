@@ -169,11 +169,11 @@ export default function Explore() {
   }, [userLoc, mapCenter]);
 
   const listNode = (
-    <div className="flex flex-col h-full">
-      <div className="px-3 pt-3 pb-2 shrink-0 hidden md:block">
+    <div className="flex flex-col h-full min-w-0 w-full">
+      <div className="px-3 pt-3 pb-2 shrink-0 min-w-0 hidden md:block">
         <SearchBar onPick={onPickPlace} />
       </div>
-      <div className="px-3 pt-3 md:pt-1 pb-2 shrink-0">
+      <div className="px-3 pt-3 md:pt-1 pb-2 shrink-0 min-w-0">
         <CategoryFilters active={activeCats} onToggle={toggleCat} onAll={allCats} />
       </div>
       <div className="px-3 pb-2 flex items-center justify-between shrink-0">
