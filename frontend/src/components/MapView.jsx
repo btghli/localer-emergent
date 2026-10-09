@@ -6,7 +6,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { CAT_MAP, catColor } from "@/lib/categories";
 import { Navigation } from "lucide-react";
 
+const categoryIconCache = new Map();
+let cachedUserLocationIcon = null;
+
 function buildCategoryIcon(category, isSelected) {
+  const cacheKey = `${category}:${isSelected ? "selected" : "default"}`;
+  if (categoryIconCache.has(cacheKey)) return categoryIconCache.get(cacheKey);
   const CatInfo = CAT_MAP[category];
   const Icon = CatInfo?.icon;
   const color = catColor(category);
@@ -23,21 +28,30 @@ function buildCategoryIcon(category, isSelected) {
         width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;
         border-top:9px solid ${color};"></div>
     </div>`;
-  return L.divIcon({
+  const icon = L.divIcon({
     html,
     className: "localer-marker",
     iconSize: [36, 44],
     iconAnchor: [18, 44],
   });
+  categoryIconCache.set(cacheKey, icon);
+  return icon;
 }
 
 function userLocationIcon() {
+  if (cachedUserLocationIcon) return cachedUserLocationIcon;
   const html = `
     <div style="position:relative;width:18px;height:18px;transform:translate(-50%,-50%);">
       <div class="loc-pulse" style="position:absolute;inset:0;border-radius:999px;background:#2563eb;opacity:.4;"></div>
       <div style="position:absolute;inset:0;border-radius:999px;background:#2563eb;border:3px solid #fff;box-shadow:0 0 0 1px #2563eb33;"></div>
     </div>`;
-  return L.divIcon({ html, className: "localer-user", iconSize: [18, 18], iconAnchor: [9, 9] });
+  cachedUserLocationIcon = L.divIcon({
+    html,
+    className: "localer-user",
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+  return cachedUserLocationIcon;
 }
 
 function MapEvents({ onMoveEnd, onClick }) {

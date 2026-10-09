@@ -15,6 +15,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 const DEFAULT_CENTER = { lat: 40.7128, lng: -74.006 }; // NYC fallback
+const SEARCH_MOVE_THRESHOLD_M = 400;
+
+function distanceMeters(a, b) {
+  if (!a || !b) return 0;
+  const toRad = (degrees) => (degrees * Math.PI) / 180;
+  const earthRadiusM = 6371000;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadiusM * Math.asin(Math.sqrt(h));
+}
 
 export default function Explore() {
   const { lang, t } = useI18n();
@@ -37,6 +52,7 @@ export default function Explore() {
   const [favKeys, setFavKeys] = useState(new Set());
 
   const reqIdRef = useRef(0);
+  const nearbyAbortRef = useRef(null);
 
   // Initial location
   useEffect(() => {
@@ -81,21 +97,25 @@ export default function Explore() {
   const fetchNearby = useCallback(
     async (c) => {
       if (!c) return;
+      nearbyAbortRef.current?.abort();
+      const controller = new AbortController();
+      nearbyAbortRef.current = controller;
       const id = ++reqIdRef.current;
       setLoading(true);
       setError(null);
       try {
         const cats = Array.from(activeCats);
-        const data = await contentApi.nearby(c.lat, c.lng, 3500, cats);
+        const data = await contentApi.nearby(c.lat, c.lng, 3500, cats, controller.signal);
         if (id !== reqIdRef.current) return;
         setItems(data || []);
         setShowMoveBtn(false);
       } catch (e) {
+        if (controller.signal.aborted) return;
         if (id !== reqIdRef.current) return;
         setError(e?.message || "Failed");
         setItems([]);
       } finally {
-        if (id === reqIdRef.current) setLoading(false);
+        if (id === reqIdRef.current && !controller.signal.aborted) setLoading(false);
       }
     },
     [activeCats]
@@ -103,6 +123,7 @@ export default function Explore() {
 
   useEffect(() => {
     if (center) fetchNearby(center);
+    return () => nearbyAbortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center?.lat, center?.lng, activeCats]);
 
@@ -113,12 +134,10 @@ export default function Explore() {
       setShowMoveBtn(false);
       return;
     }
-    const dLat = Math.abs(center.lat - c.lat);
-    const dLng = Math.abs(center.lng - c.lng);
     // Keep the control in sync in both directions. Previously it was only
     // ever set to true, so a programmatic fly-back could leave behind a stale
     // button whose click did not change the search coordinates.
-    setShowMoveBtn(dLat > 0.004 || dLng > 0.004);
+    setShowMoveBtn(distanceMeters(center, c) > SEARCH_MOVE_THRESHOLD_M);
   };
 
   const onSearchArea = () => {
@@ -186,9 +205,7 @@ export default function Explore() {
 
   const notOnMyLocation = useMemo(() => {
     if (!userLoc || !mapCenter) return false;
-    const d =
-      Math.abs(userLoc.lat - mapCenter.lat) + Math.abs(userLoc.lng - mapCenter.lng);
-    return d > 0.005;
+    return distanceMeters(userLoc, mapCenter) > 500;
   }, [userLoc, mapCenter]);
 
   const waitingForLocation = locating && !center;

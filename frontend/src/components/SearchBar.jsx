@@ -15,6 +15,7 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
   const timerRef = useRef(null);
   const containerRef = useRef(null);
   const requestRef = useRef(0);
+  const abortRef = useRef(null);
   const skipNextSearchRef = useRef(false);
 
   useEffect(() => {
@@ -46,13 +47,17 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
     setSearched(false);
     setActiveIndex(-1);
     timerRef.current = setTimeout(async () => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       const requestId = ++requestRef.current;
       try {
-        const r = await contentApi.geocode(query);
+        const r = await contentApi.geocode(query, controller.signal);
         if (requestId !== requestRef.current) return;
         setResults(r || []);
         setOpen(true);
       } catch {
+        if (controller.signal.aborted) return;
         if (requestId !== requestRef.current) return;
         setResults([]);
         setOpen(true);
@@ -65,6 +70,7 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
     }, 350);
     return () => {
       clearTimeout(timerRef.current);
+      abortRef.current?.abort();
       requestRef.current += 1;
     };
   }, [q]);
@@ -78,6 +84,7 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
   }, []);
 
   const pick = (r) => {
+    abortRef.current?.abort();
     skipNextSearchRef.current = true;
     setOpen(false);
     setResults([]);
@@ -145,6 +152,7 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
             type="button"
             data-testid="search-clear-btn"
             onClick={() => {
+              abortRef.current?.abort();
               requestRef.current += 1;
               setQ("");
               setResults([]);

@@ -22,11 +22,14 @@ export const authApi = {
 };
 
 export const contentApi = {
-  nearby: (lat, lng, radius, cats) =>
+  nearby: (lat, lng, radius, cats, signal) =>
     http
-      .get("/nearby", { params: { lat, lng, radius, categories: cats?.join(",") } })
+      .get("/nearby", {
+        params: { lat, lng, radius, categories: cats?.join(",") },
+        signal,
+      })
       .then((r) => r.data),
-  geocode: (q) => http.get("/geocode", { params: { q } }).then((r) => r.data),
+  geocode: (q, signal) => http.get("/geocode", { params: { q }, signal }).then((r) => r.data),
   ask: (item, question, language) =>
     http.post("/ai/ask", { item, question, language }).then((r) => r.data),
   translate: (text, target) =>
