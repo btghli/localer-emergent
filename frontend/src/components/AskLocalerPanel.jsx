@@ -16,10 +16,18 @@ export default function AskLocalerPanel({ item }) {
   const [loading, setLoading] = useState(false);
   const [speaking, setSpeaking] = useState(null); // index speaking
   const scrollRef = useRef(null);
+  const requestRef = useRef(0);
+  const abortRef = useRef(null);
 
   useEffect(() => {
+    abortRef.current?.abort();
+    requestRef.current += 1;
+    ttsStop();
+    setSpeaking(null);
+    setLoading(false);
     setThread([]);
     setQ("");
+    return () => abortRef.current?.abort();
   }, [item?.id]);
 
   useEffect(() => {
@@ -32,13 +40,19 @@ export default function AskLocalerPanel({ item }) {
     setQ("");
     setThread((th) => [...th, { role: "user", text: question }]);
     setLoading(true);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const requestId = ++requestRef.current;
     try {
-      const r = await contentApi.ask(item, question, lang);
+      const r = await contentApi.ask(item, question, lang, controller.signal);
+      if (requestId !== requestRef.current) return;
       setThread((th) => [...th, { role: "ai", text: r.answer, sourceUrl: r.sourceUrl }]);
     } catch (e) {
+      if (controller.signal.aborted || requestId !== requestRef.current) return;
       toast.error(t("ai_error"));
     } finally {
-      setLoading(false);
+      if (requestId === requestRef.current && !controller.signal.aborted) setLoading(false);
     }
   };
 
@@ -148,6 +162,7 @@ export default function AskLocalerPanel({ item }) {
           placeholder={t("ask_placeholder")}
           data-testid="ask-input"
           rows={1}
+          maxLength={1000}
           className="min-h-[40px] max-h-28 resize-none rounded-xl bg-white border-zinc-200"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {

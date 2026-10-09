@@ -60,6 +60,7 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     const translate = async () => {
       if (!item) return;
       if (!showZh) {
@@ -84,10 +85,10 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
         const [tTitle, tSum] = await Promise.all([
           item.titleZh
             ? Promise.resolve({ text: item.titleZh })
-            : contentApi.translate(item.title || "", "zh"),
+            : contentApi.translate(item.title || "", "zh", controller.signal),
           item.summaryZh || !item.summary
             ? Promise.resolve({ text: item.summaryZh || "" })
-            : contentApi.translate(item.summary, "zh"),
+            : contentApi.translate(item.summary, "zh", controller.signal),
         ]);
         if (!cancelled) {
           setTranslation({ itemId: item.id, title: tTitle.text, summary: tSum.text });
@@ -103,6 +104,7 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
     translate();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [item, showZh]);
 

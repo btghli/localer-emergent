@@ -31,10 +31,10 @@ export const contentApi = {
       })
       .then((r) => r.data),
   geocode: (q, signal) => http.get("/geocode", { params: { q }, signal }).then((r) => r.data),
-  ask: (item, question, language) =>
-    http.post("/ai/ask", { item, question, language }).then((r) => r.data),
-  translate: (text, target) =>
-    http.post("/ai/translate", { text, target }).then((r) => r.data),
+  ask: (item, question, language, signal) =>
+    http.post("/ai/ask", { item, question, language }, { signal }).then((r) => r.data),
+  translate: (text, target, signal) =>
+    http.post("/ai/translate", { text, target }, { signal }).then((r) => r.data),
 };
 
 export const favApi = {
