@@ -14,7 +14,7 @@ from typing import List
 import httpx
 
 from models import NearbyItem
-from providers import FetchContext, Provider, now_iso, new_id
+from providers import FetchContext, Provider, ProviderFetchError, now_iso, new_id
 
 logger = logging.getLogger("localer.providers.ticketmaster")
 
@@ -56,11 +56,9 @@ class TicketmasterProvider(Provider):
             async with httpx.AsyncClient(timeout=12.0, headers={"User-Agent": UA}) as hx:
                 r = await hx.get(BASE, params=params)
                 if r.status_code == 429:
-                    logger.warning("ticketmaster 429 rate-limit")
-                    return []
+                    raise ProviderFetchError("Ticketmaster rate limit")
                 if r.status_code != 200:
-                    logger.warning("ticketmaster HTTP %s", r.status_code)
-                    return []
+                    raise ProviderFetchError(f"Ticketmaster HTTP {r.status_code}")
                 data = r.json()
                 events = ((data or {}).get("_embedded") or {}).get("events") or []
                 for ev in events:
@@ -71,8 +69,11 @@ class TicketmasterProvider(Provider):
                     except Exception as pe:
                         logger.warning("ticketmaster parse error: %s", pe)
                         continue
+        except ProviderFetchError:
+            raise
         except Exception as e:
             logger.warning("ticketmaster fetch failed: %s", e)
+            raise ProviderFetchError("Ticketmaster request failed") from e
         return items
 
     def _parse(self, ev: dict) -> NearbyItem | None:

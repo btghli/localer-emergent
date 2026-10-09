@@ -22,7 +22,7 @@ from typing import List
 import httpx
 
 from models import NearbyItem
-from providers import FetchContext, Provider, now_iso, new_id
+from providers import FetchContext, Provider, ProviderFetchError, now_iso, new_id
 
 logger = logging.getLogger("localer.providers.osm")
 
@@ -73,6 +73,7 @@ class OsmPoiProvider(Provider):
 
         out: List[NearbyItem] = []
         seen = set()
+        successful_queries = 0
         try:
             async with httpx.AsyncClient(
                 timeout=12.0,
@@ -89,6 +90,7 @@ class OsmPoiProvider(Provider):
                     })
                     if "__data" not in r:
                         continue
+                    successful_queries += 1
                     for d in (r["__data"] or [])[:8]:
                         try:
                             osm_id = d.get("osm_id")
@@ -130,4 +132,7 @@ class OsmPoiProvider(Provider):
                             continue
         except Exception as e:
             logger.warning("osm provider failed: %s", e)
+            raise ProviderFetchError("OpenStreetMap request failed") from e
+        if successful_queries == 0:
+            raise ProviderFetchError("OpenStreetMap returned no successful responses")
         return out

@@ -15,7 +15,7 @@ Local relevance is established by:
 
 Fabrication rules:
   - If locality cannot be resolved, return [].
-  - If GDELT fails, return [].
+  - If GDELT fails, raise ProviderFetchError so the service can use stale data.
   - No fake dates, no fake coordinates, no fake sources.
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ from typing import List, Optional
 import httpx
 
 from models import NearbyItem
-from providers import FetchContext, Provider, now_iso, new_id
+from providers import FetchContext, Provider, ProviderFetchError, now_iso, new_id
 
 logger = logging.getLogger("localer.providers.gdelt")
 
@@ -94,23 +94,23 @@ class GdeltNewsProvider(Provider):
             async with httpx.AsyncClient(timeout=15.0, headers={"User-Agent": UA}) as hx:
                 r = await hx.get(BASE, params=params)
                 if r.status_code == 429:
-                    logger.warning("gdelt 429 rate-limit")
-                    return []
+                    raise ProviderFetchError("GDELT rate limit")
                 if r.status_code != 200:
-                    logger.warning("gdelt HTTP %s", r.status_code)
-                    return []
+                    raise ProviderFetchError(f"GDELT HTTP {r.status_code}")
                 try:
                     data = r.json()
-                except Exception:
-                    logger.warning("gdelt returned non-JSON (possibly rate-limited)")
-                    return []
+                except Exception as e:
+                    raise ProviderFetchError("GDELT returned invalid JSON") from e
                 articles = (data or {}).get("articles") or []
                 for a in articles:
                     itm = self._parse(a, ctx)
                     if itm:
                         items.append(itm)
+        except ProviderFetchError:
+            raise
         except Exception as e:
             logger.warning("gdelt fetch failed: %s", e)
+            raise ProviderFetchError("GDELT request failed") from e
         return items
 
     def _parse(self, a: dict, ctx: FetchContext) -> Optional[NearbyItem]:

@@ -7,7 +7,7 @@ from typing import List
 import httpx
 
 from models import NearbyItem
-from providers import FetchContext, Provider, now_iso, new_id
+from providers import FetchContext, Provider, ProviderFetchError, now_iso, new_id
 
 logger = logging.getLogger("localer.providers.wikipedia")
 
@@ -39,6 +39,7 @@ class WikipediaProvider(Provider):
                 headers={"User-Agent": UA, "Accept": "application/json"},
             ) as hx:
                 r = await hx.get(base, params=params)
+                r.raise_for_status()
                 data = r.json()
                 pages = data.get("query", {}).get("geosearch", [])
                 if not pages:
@@ -88,4 +89,5 @@ class WikipediaProvider(Provider):
                     ))
         except Exception as e:
             logger.warning("wikipedia provider failed: %s", e)
+            raise ProviderFetchError("Wikipedia request failed") from e
         return items

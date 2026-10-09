@@ -9,7 +9,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from models import NearbyItem
-from providers import FetchContext, Provider, distance_m
+from providers import FetchContext, Provider, ProviderFetchError, distance_m
 from providers.geocoder import Geocoder
 from services import ProviderCache, make_key
 
@@ -131,19 +131,30 @@ class NearbyService:
             return [NearbyItem(**d) for d in cached.get("items", [])]
 
         # Need a live fetch
+        fetch_failed = False
         try:
             items = await provider.fetch(ctx)
-        except Exception as e:
+        except ProviderFetchError as e:
             logger.warning("%s fetch raised: %s", provider.name, e)
             items = []
+            fetch_failed = True
+        except Exception as e:
+            # Provider adapters should wrap expected upstream failures, but an
+            # unexpected adapter bug must still remain isolated.
+            logger.exception("%s unexpected fetch failure", provider.name)
+            items = []
+            fetch_failed = True
 
-        if items:
+        if not fetch_failed:
+            # Cache successful empty responses too. Otherwise a quiet area
+            # repeatedly hits the provider and may incorrectly revive stale
+            # content from an earlier request.
             await self.cache.set(key, [i.model_dump() for i in items], ttl)
             return items
 
-        # Fallback to stale cache, marked
+        # Only a genuine provider failure may fall back to stale real data.
         if cached and cached.get("items"):
-            logger.info("%s: live fetch empty, returning stale cache", provider.name)
+            logger.info("%s: live fetch failed, returning stale cache", provider.name)
             out = []
             for d in cached["items"]:
                 try:

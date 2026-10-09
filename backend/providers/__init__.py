@@ -1,7 +1,9 @@
 """Provider interface and shared helpers.
 
 Each provider implements `fetch(ctx)` → list[NearbyItem]. Providers must:
-- Never raise on third-party failure. Return [] and log a warning.
+- Return [] when a successful request has no matching content.
+- Raise ProviderFetchError for upstream/network failure so stale-cache policy
+  never confuses an outage with a legitimate empty result.
 - Never fabricate titles, descriptions, dates, or coordinates.
 - Namespace externalId as "<provider>:<providerItemId>".
 """
@@ -17,6 +19,10 @@ from typing import List, Optional
 from models import NearbyItem
 
 logger = logging.getLogger("localer.providers")
+
+
+class ProviderFetchError(RuntimeError):
+    """The provider could not produce an authoritative live response."""
 
 
 @dataclass
