@@ -102,6 +102,26 @@ def test_nearby_event_empty_when_no_ticketmaster_key(session):
     assert items == [], f"expected [] but got {len(items)} items (potential demo fallback)"
 
 
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"lat": 91, "lng": 0, "radius": 3000},
+        {"lat": 0, "lng": 181, "radius": 3000},
+        {"lat": 0, "lng": 0, "radius": 99},
+        {"lat": 0, "lng": 0, "radius": 50001},
+        {"lat": 0, "lng": 0, "radius": 3000, "categories": "landmark,unknown"},
+    ],
+)
+def test_nearby_rejects_invalid_search_bounds(session, params):
+    r = session.get(f"{API}/nearby", params=params)
+    assert r.status_code == 422, r.text
+
+
+def test_geocode_rejects_unbounded_query(session):
+    r = session.get(f"{API}/geocode", params={"q": "x" * 201})
+    assert r.status_code == 422, r.text
+
+
 # ------- Wikipedia landmarks for Paris -------
 def test_nearby_landmarks_wikipedia(session):
     r = session.get(f"{API}/nearby", params={**PARIS, "categories": "landmark"})

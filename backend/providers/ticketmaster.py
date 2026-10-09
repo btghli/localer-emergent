@@ -81,7 +81,7 @@ class TicketmasterProvider(Provider):
         url = ev.get("url")
         if not pid or not name or not url:
             return None
-        if (ev.get("test") is True) or (ev.get("dates", {}).get("status", {}).get("code") == "cancelled" and ev.get("dates", {}).get("status", {}).get("code") == "test"):
+        if ev.get("test") is True:
             return None
         status_code = (ev.get("dates", {}).get("status", {}) or {}).get("code")
         if status_code in {"cancelled"}:
@@ -127,7 +127,8 @@ class TicketmasterProvider(Provider):
         city = (venue.get("city") or {}).get("name")
         state = (venue.get("state") or {}).get("name")
         country = (venue.get("country") or {}).get("name")
-        location_precision = "venue" if (latitude and longitude) else ("city" if city else "region")
+        has_coordinates = latitude is not None and longitude is not None
+        location_precision = "venue" if has_coordinates else ("city" if city else "region")
 
         images = ev.get("images") or []
         # Pick largest 16:9 if available
@@ -166,6 +167,6 @@ class TicketmasterProvider(Provider):
             startsAt=starts_at,
             endsAt=ends_at,
             eventStatus=event_status,
-            confidenceScore=0.85 if (latitude and longitude) else 0.6,
+            confidenceScore=0.85 if has_coordinates else 0.6,
             fetchedAt=now_iso(),
         )

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -9,7 +9,7 @@ import uuid
 import hashlib
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
-from typing import List, Optional
+from typing import List, Optional, Literal
 from datetime import datetime, timezone, timedelta
 import jwt
 from passlib.context import CryptContext
@@ -85,13 +85,13 @@ class AuthOut(BaseModel):
 
 
 class SettingsIn(BaseModel):
-    language: Optional[str] = None
+    language: Optional[Literal["en", "zh"]] = None
     tts_voice: Optional[str] = None
 
 
 class AskIn(BaseModel):
     item: NearbyItem
-    question: str
+    question: str = Field(min_length=1, max_length=1000)
     language: str = "en"
 
 
@@ -101,7 +101,7 @@ class AskOut(BaseModel):
 
 
 class TranslateIn(BaseModel):
-    text: str
+    text: str = Field(max_length=5000)
     target: str
 
 
@@ -221,13 +221,23 @@ async def rm_fav(key: str, user: User = Depends(current_user)):
 # -------------------- Content --------------------
 
 @api.get("/nearby", response_model=List[NearbyItem])
-async def nearby(lat: float, lng: float, radius: int = 3000, categories: Optional[str] = None):
+async def nearby(
+    lat: float = Query(ge=-90, le=90),
+    lng: float = Query(ge=-180, le=180),
+    radius: int = Query(default=3000, ge=100, le=50000),
+    categories: Optional[str] = Query(default=None, max_length=100),
+):
     cats = [c.strip() for c in categories.split(",") if c.strip()] if categories else None
+    if cats:
+        allowed = {"landmark", "event", "news", "food", "nature"}
+        unknown = sorted(set(cats) - allowed)
+        if unknown:
+            raise HTTPException(status_code=422, detail=f"Unknown categories: {', '.join(unknown)}")
     return await nearby_service.nearby(lat, lng, radius, cats)
 
 
 @api.get("/geocode")
-async def geocode(q: str):
+async def geocode(q: str = Query(max_length=200)):
     return await geocoder.forward(q)
 
 
@@ -287,7 +297,7 @@ async def ai_ask(body: AskIn):
         answer = str(resp).strip()
     except Exception as e:
         logger.exception("ai_ask failed")
-        raise HTTPException(status_code=502, detail=f"AI unavailable: {e}")
+        raise HTTPException(status_code=502, detail="AI assistant is temporarily unavailable") from e
     return AskOut(answer=answer, sourceUrl=body.item.sourceUrl)
 
 
@@ -315,7 +325,7 @@ async def ai_translate(body: TranslateIn):
         translated = str(resp).strip()
     except Exception as e:
         logger.exception("translate failed")
-        raise HTTPException(status_code=502, detail=f"Translation unavailable: {e}")
+        raise HTTPException(status_code=502, detail="Translation is temporarily unavailable") from e
     await db.translations.insert_one({
         "key": cache_key, "target": target, "source_text": body.text,
         "text": translated, "created_at": datetime.now(timezone.utc).isoformat(),
@@ -346,10 +356,18 @@ async def provider_status():
 # -------------------- App wiring --------------------
 
 app.include_router(api)
+cors_origins = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ORIGINS", "*").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    # Browsers reject credentialed CORS with a wildcard origin. Localer uses
+    # bearer tokens rather than cookies, so wildcard deployments do not need
+    # credential mode; explicit-origin deployments can safely enable it.
+    allow_credentials="*" not in cors_origins,
+    allow_origins=cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
