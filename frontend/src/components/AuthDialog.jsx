@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { useI18n } from "@/context/I18nContext";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AuthDialog() {
@@ -22,6 +22,7 @@ export default function AuthDialog() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -38,8 +39,16 @@ export default function AuthDialog() {
       setEmail("");
       setPassword("");
       setName("");
+      setShowPassword(false);
     } catch (e2) {
-      toast.error(e2?.response?.data?.detail || "Error");
+      const detail = e2?.response?.data?.detail;
+      if (detail === "Email already registered") {
+        toast.error(t("auth_email_exists"));
+      } else if (detail === "Invalid credentials") {
+        toast.error(t("auth_invalid_credentials"));
+      } else {
+        toast.error(t("auth_error"));
+      }
     } finally {
       setLoading(false);
     }
@@ -68,6 +77,9 @@ export default function AuthDialog() {
               <Input
                 data-testid="auth-name-input"
                 placeholder={t("name")}
+                aria-label={t("name")}
+                autoComplete="name"
+                maxLength={100}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="rounded-xl"
@@ -78,20 +90,40 @@ export default function AuthDialog() {
               required
               data-testid="auth-email-input"
               placeholder={t("email")}
+              aria-label={t("email")}
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="rounded-xl"
             />
-            <Input
-              type="password"
-              required
-              minLength={6}
-              data-testid="auth-password-input"
-              placeholder={t("password")}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="rounded-xl"
-            />
+            <div>
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={tab === "up" ? 6 : 1}
+                  maxLength={128}
+                  data-testid="auth-password-input"
+                  placeholder={t("password")}
+                  aria-label={t("password")}
+                  autoComplete={tab === "up" ? "new-password" : "current-password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="rounded-xl pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((shown) => !shown)}
+                  aria-label={showPassword ? t("hide_password") : t("show_password")}
+                  className="absolute inset-y-0 right-0 grid w-10 place-items-center rounded-r-xl text-zinc-500 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-900"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {tab === "up" && (
+                <p className="mt-1.5 px-1 text-xs text-zinc-500">{t("password_hint")}</p>
+              )}
+            </div>
             <Button
               type="submit"
               data-testid="auth-submit-btn"
