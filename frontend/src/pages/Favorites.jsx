@@ -70,14 +70,18 @@ export default function Favorites() {
   const filtered = list.filter((it) => cats.has(it.category));
 
   const toggleFav = (key, isFav) => {
-    if (!isFav) {
-      setList((l) => l.filter((i) => i.externalId !== key));
-      setKeys((s) => {
-        const n = new Set(s);
-        n.delete(key);
-        return n;
-      });
-    }
+    setKeys((current) => {
+      const next = new Set(current);
+      if (isFav) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+    setList((current) => {
+      if (!isFav) return current.filter((item) => item.externalId !== key);
+      if (current.some((item) => item.externalId === key)) return current;
+      if (selected?.externalId === key) return [selected, ...current];
+      return current;
+    });
   };
 
   const removeFav = async (item) => {
@@ -123,13 +127,29 @@ export default function Favorites() {
           <div className="flex items-center justify-center py-16 text-zinc-500">
             <Loader2 className="animate-spin mr-2" size={16} /> {t("loading_nearby")}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : list.length === 0 ? (
           <div
             data-testid="favorites-empty"
             className="text-center py-16 text-zinc-600 bg-white rounded-2xl border border-zinc-200"
           >
             <Heart size={24} className="mx-auto text-zinc-400 mb-2" />
             <p className="text-sm">{t("favorites_empty")}</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div
+            data-testid="favorites-filter-empty"
+            className="text-center py-12 px-5 text-zinc-600 bg-white rounded-2xl border border-zinc-200"
+          >
+            <Heart size={24} className="mx-auto text-zinc-400 mb-2" />
+            <p className="text-sm">{t("favorites_filter_empty")}</p>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setCats(new Set(CATEGORIES.map((category) => category.key)))}
+              className="mt-4 rounded-full border border-zinc-200 bg-white"
+            >
+              {t("show_all_favorites")}
+            </Button>
           </div>
         ) : (
           <div className="space-y-2" data-testid="favorites-list">

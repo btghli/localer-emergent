@@ -169,7 +169,7 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
         toast.success(t("saved"));
       }
     } catch {
-      toast.error("Failed");
+      toast.error(t("favorite_update_error"));
     }
   };
 
