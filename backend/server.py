@@ -465,27 +465,77 @@ async def nearby(lat: float, lng: float, radius: int = 3000, categories: Optiona
 
 @api.get("/geocode")
 async def geocode(q: str):
-    """Nominatim-backed worldwide place search."""
+    """Worldwide place search — Photon primary with Nominatim fallback and short cache."""
+    q = (q or "").strip()
+    if not q:
+        return []
+    cache_key = hashlib.sha256(f"geo:{q.lower()}".encode()).hexdigest()
+    cached = await db.geocode_cache.find_one({"key": cache_key}, {"_id": 0})
+    if cached and cached.get("expires_at", "") > _now_iso():
+        return cached["results"]
+
+    ua = "Localer/1.0 (https://localer.app; contact@localer.app)"
+    results = []
     try:
-        async with httpx.AsyncClient(timeout=10.0) as hx:
+        async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": ua, "Accept": "application/json"}) as hx:
             r = await hx.get(
-                "https://nominatim.openstreetmap.org/search",
-                params={"q": q, "format": "json", "limit": 6, "addressdetails": 1},
-                headers={"User-Agent": "Localer/1.0 (contact@localer.app)"},
+                "https://photon.komoot.io/api",
+                params={"q": q, "limit": 7},
             )
             data = r.json()
-            return [
-                {
-                    "display_name": d["display_name"],
-                    "lat": float(d["lat"]),
-                    "lng": float(d["lon"]),
-                    "type": d.get("type"),
-                }
-                for d in data
-            ]
+            for f in data.get("features", []):
+                try:
+                    coords = f["geometry"]["coordinates"]
+                    props = f.get("properties", {})
+                    name = props.get("name") or ""
+                    bits = [name]
+                    for k in ("city", "state", "country"):
+                        v = props.get(k)
+                        if v and v not in bits:
+                            bits.append(v)
+                    results.append({
+                        "display_name": ", ".join([b for b in bits if b]).strip(", "),
+                        "lat": float(coords[1]),
+                        "lng": float(coords[0]),
+                        "type": props.get("osm_value") or props.get("type"),
+                    })
+                except Exception:
+                    continue
     except Exception as e:
-        logger.warning(f"geocode failed: {e}")
-        return []
+        logger.warning(f"photon geocode failed: {e}")
+
+    # Nominatim fallback if photon returned nothing
+    if not results:
+        try:
+            async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": ua, "Accept": "application/json"}) as hx:
+                r = await hx.get(
+                    "https://nominatim.openstreetmap.org/search",
+                    params={"q": q, "format": "json", "limit": 6, "addressdetails": 1},
+                )
+                data = r.json() if r.status_code == 200 else []
+                results = [
+                    {
+                        "display_name": d.get("display_name", ""),
+                        "lat": float(d["lat"]),
+                        "lng": float(d["lon"]),
+                        "type": d.get("type"),
+                    }
+                    for d in (data if isinstance(data, list) else [])
+                ]
+        except Exception as e:
+            logger.warning(f"nominatim geocode fallback failed: {e}")
+
+    # Cache for 24h
+    try:
+        expires = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+        await db.geocode_cache.update_one(
+            {"key": cache_key},
+            {"$set": {"key": cache_key, "q": q, "results": results, "expires_at": expires}},
+            upsert=True,
+        )
+    except Exception:
+        pass
+    return results
 
 
 # -------------------- AI (Gemini via Emergent) --------------------
