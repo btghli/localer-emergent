@@ -32,6 +32,10 @@ h1, h2, h3, h4 {
   outline: none;
   font-family: inherit;
 }
+/* Softer, cleaner map tiles */
+.leaflet-tile {
+  filter: saturate(0.72) brightness(1.03) contrast(0.96);
+}
 .leaflet-control-attribution {
   font-size: 10px !important;
   background: rgba(255, 255, 255, 0.7) !important;

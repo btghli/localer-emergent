@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X, Loader2, LocateFixed } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { contentApi } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 
-export default function SearchBar({ onPick }) {
+export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
   const { t } = useI18n();
   const [q, setQ] = useState("");
   const [results, setResults] = useState([]);
@@ -51,10 +51,10 @@ export default function SearchBar({ onPick }) {
   return (
     <div
       ref={containerRef}
-      className="relative pointer-events-auto"
+      className="relative pointer-events-auto flex items-center gap-2"
       data-testid="search-container"
     >
-      <div className="relative">
+      <div className="relative flex-1 min-w-0">
         <Search
           size={16}
           className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
@@ -91,10 +91,22 @@ export default function SearchBar({ onPick }) {
           </button>
         )}
       </div>
+      {showRecenter && onRecenter && (
+        <button
+          type="button"
+          onClick={onRecenter}
+          data-testid="searchbar-recenter-btn"
+          aria-label={t("recenter")}
+          title={t("recenter")}
+          className="shrink-0 w-11 h-11 rounded-full bg-white/90 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.08)] grid place-items-center hover:bg-white text-zinc-800 transition-colors"
+        >
+          <LocateFixed size={16} />
+        </button>
+      )}
 
       {open && results.length > 0 && (
         <ul
-          className="absolute left-0 right-0 mt-2 max-h-80 overflow-auto nice-scroll rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-xl p-1 z-50"
+          className="absolute left-0 right-0 top-full mt-2 max-h-80 overflow-auto nice-scroll rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-xl p-1 z-50"
           data-testid="search-results"
         >
           {results.map((r, i) => (

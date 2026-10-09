@@ -171,7 +171,7 @@ export default function Explore() {
   const listNode = (
     <div className="flex flex-col h-full min-w-0 w-full">
       <div className="px-3 pt-3 pb-2 shrink-0 min-w-0 hidden md:block">
-        <SearchBar onPick={onPickPlace} />
+        <SearchBar onPick={onPickPlace} onRecenter={onRecenter} />
       </div>
       <div className="px-3 pt-3 md:pt-1 pb-2 shrink-0 min-w-0">
         <CategoryFilters active={activeCats} onToggle={toggleCat} onAll={allCats} />
@@ -255,7 +255,7 @@ export default function Explore() {
 
       {/* Search bar — desktop lives inside discovery panel; mobile floats at top */}
       <div className="md:hidden fixed top-3 left-3 right-14 z-40">
-        <SearchBar onPick={onPickPlace} />
+        <SearchBar onPick={onPickPlace} onRecenter={onRecenter} />
       </div>
 
       {/* "Search this area" button */}
