@@ -10,7 +10,7 @@ import { useI18n } from "@/context/I18nContext";
 import { useAuth } from "@/context/AuthContext";
 import { contentApi, favApi } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
-import { Loader2, Navigation, LocateFixed, RefreshCw, Search } from "lucide-react";
+import { Loader2, Navigation, LocateFixed, RefreshCw, Search, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
@@ -25,6 +25,7 @@ export default function Explore() {
   const [flyKey, setFlyKey] = useState(0);
   const [zoom, setZoom] = useState(14);
   const [userLoc, setUserLoc] = useState(null);
+  const [locating, setLocating] = useState(true);
   const [locationDenied, setLocationDenied] = useState(false);
   const [showMoveBtn, setShowMoveBtn] = useState(false);
 
@@ -40,6 +41,7 @@ export default function Explore() {
   // Initial location
   useEffect(() => {
     if (!("geolocation" in navigator)) {
+      setLocating(false);
       setLocationDenied(true);
       setCenter(DEFAULT_CENTER);
       setFlyKey((k) => k + 1);
@@ -48,11 +50,14 @@ export default function Explore() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setLocating(false);
+        setLocationDenied(false);
         setUserLoc(loc);
         setCenter(loc);
         setFlyKey((k) => k + 1);
       },
       () => {
+        setLocating(false);
         setLocationDenied(true);
         setCenter(DEFAULT_CENTER);
         setFlyKey((k) => k + 1);
@@ -128,14 +133,21 @@ export default function Explore() {
   const onRecenter = () => {
     if (!userLoc) {
       if ("geolocation" in navigator) {
+        setLocating(true);
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            setLocating(false);
+            setLocationDenied(false);
             setUserLoc(loc);
             setCenter(loc);
             setFlyKey((k) => k + 1);
           },
-          () => toast.error(t("location_denied_title"))
+          () => {
+            setLocating(false);
+            setLocationDenied(true);
+            toast.error(t("location_denied_title"));
+          }
         );
       }
       return;
@@ -157,6 +169,7 @@ export default function Explore() {
   const allCats = () => setActiveCats(new Set(CATEGORIES.map((c) => c.key)));
 
   const onPickPlace = (p) => {
+    setLocationDenied(false);
     setCenter({ lat: p.lat, lng: p.lng });
     setFlyKey((k) => k + 1);
     setZoom(14);
@@ -178,6 +191,8 @@ export default function Explore() {
     return d > 0.005;
   }, [userLoc, mapCenter]);
 
+  const waitingForLocation = locating && !center;
+
   const listNode = (
     <div className="flex flex-col h-full min-w-0 w-full">
       <div className="px-3 pt-3 pb-2 shrink-0 min-w-0 hidden md:block">
@@ -192,7 +207,11 @@ export default function Explore() {
             {t("nearby")}
           </p>
           <p className="text-sm text-zinc-800 font-medium">
-            {loading ? t("loading_nearby") : `${items.length} ${lang === "zh" ? "项" : "results"}`}
+            {waitingForLocation
+              ? t("finding_location")
+              : loading
+                ? t("loading_nearby")
+                : `${items.length} ${lang === "zh" ? "项" : "results"}`}
           </p>
         </div>
       </div>
@@ -200,7 +219,7 @@ export default function Explore() {
         className="flex-1 overflow-y-auto nice-scroll px-3 pb-20 md:pb-4 space-y-2"
         data-testid="nearby-list"
       >
-        {loading && items.length === 0 && (
+        {(waitingForLocation || loading) && items.length === 0 && (
           <div className="space-y-2">
             {[...Array(4)].map((_, i) => (
               <div
@@ -218,14 +237,14 @@ export default function Explore() {
             ))}
           </div>
         )}
-        {!loading && items.length === 0 && !error && (
+        {!waitingForLocation && !loading && items.length === 0 && !error && (
           <div className="text-sm text-zinc-600 bg-white/80 rounded-xl p-4 border border-white/70">
             {t("no_results")}
           </div>
         )}
         {error && (
           <div className="text-sm text-rose-700 bg-rose-50 rounded-xl p-4 border border-rose-200 flex items-center justify-between">
-            <span>Oops: {String(error)}</span>
+            <span>{t("nearby_error")}</span>
             <button
               onClick={() => fetchNearby(center)}
               className="text-rose-800 underline inline-flex items-center gap-1"
@@ -310,8 +329,16 @@ export default function Explore() {
         <div className="fixed top-20 md:top-20 right-4 md:right-auto md:left-[432px] z-[44] pointer-events-auto">
           <div
             data-testid="location-denied-banner"
-            className="max-w-sm bg-white/95 backdrop-blur-xl border border-amber-200 rounded-2xl shadow-lg px-4 py-3 text-sm text-zinc-800"
+            className="relative max-w-sm bg-white/95 backdrop-blur-xl border border-amber-200 rounded-2xl shadow-lg pl-4 pr-10 py-3 text-sm text-zinc-800"
           >
+            <button
+              type="button"
+              onClick={() => setLocationDenied(false)}
+              aria-label={t("close")}
+              className="absolute right-2 top-2 w-7 h-7 rounded-full grid place-items-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"
+            >
+              <X size={14} />
+            </button>
             <p className="font-display font-semibold mb-0.5">{t("location_denied_title")}</p>
             <p className="text-xs text-zinc-600">{t("location_denied_body")}</p>
           </div>

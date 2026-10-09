@@ -12,10 +12,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { loadVoices } from "@/lib/tts";
 import { toast } from "sonner";
-import { LogOut, UserRound } from "lucide-react";
+import { Loader2, LogOut, UserRound } from "lucide-react";
 
 export default function Account() {
-  const { user, logout, updateSettings, setAuthOpen } = useAuth();
+  const { user, loading: authLoading, logout, updateSettings, setAuthOpen } = useAuth();
   const { lang, setLang, t } = useI18n();
   const [voices, setVoices] = useState([]);
   const [voiceName, setVoiceName] = useState(user?.tts_voice || "");
@@ -60,7 +60,11 @@ export default function Account() {
         </h1>
 
         <div className="rounded-3xl bg-white border border-zinc-200 shadow-sm p-5 mb-5">
-          {user ? (
+          {authLoading ? (
+            <div className="h-11 flex items-center justify-center gap-2 text-sm text-zinc-500" role="status">
+              <Loader2 size={16} className="animate-spin" /> {t("restoring_session")}
+            </div>
+          ) : user ? (
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-full bg-zinc-900 text-white grid place-items-center">
                 <UserRound size={18} />

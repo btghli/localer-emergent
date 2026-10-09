@@ -12,17 +12,17 @@ import CategoryFilters from "@/components/CategoryFilters";
 import { toast } from "sonner";
 
 export default function Favorites() {
-  const { user, setAuthOpen } = useAuth();
-  const { t, lang } = useI18n();
+  const { user, loading: authLoading, setAuthOpen } = useAuth();
+  const { t } = useI18n();
   const [list, setList] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [selected, setSelected] = useState(null);
   const [cats, setCats] = useState(new Set(CATEGORIES.map((c) => c.key)));
   const [keys, setKeys] = useState(new Set());
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
+    setFavoritesLoading(true);
     favApi
       .list()
       .then((data) => {
@@ -30,8 +30,18 @@ export default function Favorites() {
         setKeys(new Set((data || []).map((i) => i.externalId)));
       })
       .catch(() => setList([]))
-      .finally(() => setLoading(false));
+      .finally(() => setFavoritesLoading(false));
   }, [user]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-gradient-to-b from-zinc-50 to-white">
+        <div className="inline-flex items-center gap-2 text-sm text-zinc-500" role="status">
+          <Loader2 className="animate-spin" size={17} /> {t("restoring_session")}
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -75,7 +85,7 @@ export default function Favorites() {
       await favApi.remove(item.externalId);
       toggleFav(item.externalId, false);
     } catch {
-      toast.error("Failed");
+      toast.error(t("favorite_remove_error"));
     }
   };
 
@@ -109,7 +119,7 @@ export default function Favorites() {
           />
         </div>
 
-        {loading ? (
+        {favoritesLoading ? (
           <div className="flex items-center justify-center py-16 text-zinc-500">
             <Loader2 className="animate-spin mr-2" size={16} /> {t("loading_nearby")}
           </div>
