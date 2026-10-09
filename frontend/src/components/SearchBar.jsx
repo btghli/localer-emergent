@@ -11,6 +11,7 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [searchError, setSearchError] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const timerRef = useRef(null);
   const containerRef = useRef(null);
@@ -30,6 +31,7 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
       setOpen(false);
       setLoading(false);
       setSearched(false);
+      setSearchError(false);
       return;
     }
 
@@ -39,12 +41,14 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
       setOpen(false);
       setLoading(false);
       setSearched(false);
+      setSearchError(false);
       setActiveIndex(-1);
       return;
     }
 
     setLoading(true);
     setSearched(false);
+    setSearchError(false);
     setActiveIndex(-1);
     timerRef.current = setTimeout(async () => {
       abortRef.current?.abort();
@@ -55,11 +59,13 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
         const r = await contentApi.geocode(query, controller.signal);
         if (requestId !== requestRef.current) return;
         setResults(r || []);
+        setSearchError(false);
         setOpen(true);
       } catch {
         if (controller.signal.aborted) return;
         if (requestId !== requestRef.current) return;
         setResults([]);
+        setSearchError(true);
         setOpen(true);
       } finally {
         if (requestId === requestRef.current) {
@@ -159,10 +165,11 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
               setOpen(false);
               setLoading(false);
               setSearched(false);
+              setSearchError(false);
               setActiveIndex(-1);
             }}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-zinc-100"
-            aria-label="clear"
+            aria-label={t("clear_search")}
           >
             <X size={14} className="text-zinc-500" />
           </button>
@@ -216,7 +223,7 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
           role="status"
           className="absolute left-0 right-0 top-full mt-2 rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-xl px-4 py-3 z-50 text-sm text-zinc-600"
         >
-          {t("search_no_results")}
+          {searchError ? t("search_error") : t("search_no_results")}
         </div>
       )}
     </div>

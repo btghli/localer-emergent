@@ -23,6 +23,10 @@ _REV_LOCK = asyncio.Lock()
 _REV_LAST: float = 0.0
 
 
+class GeocoderFetchError(RuntimeError):
+    """No geocoding source produced an authoritative response."""
+
+
 async def _throttle_rev():
     global _REV_LAST
     async with _REV_LOCK:
@@ -46,12 +50,16 @@ class Geocoder:
             return doc["results"]
 
         results = []
+        successful_response = False
         try:
             async with httpx.AsyncClient(
                 timeout=10.0, headers={"User-Agent": UA, "Accept": "application/json"},
             ) as hx:
                 r = await hx.get("https://photon.komoot.io/api", params={"q": q, "limit": 7})
-                data = r.json() if r.status_code == 200 else {}
+                if r.status_code != 200:
+                    raise GeocoderFetchError(f"Photon HTTP {r.status_code}")
+                data = r.json()
+                successful_response = True
                 for f in data.get("features", []):
                     try:
                         coords = f["geometry"]["coordinates"]
@@ -82,7 +90,10 @@ class Geocoder:
                         "https://nominatim.openstreetmap.org/search",
                         params={"q": q, "format": "json", "limit": 6, "addressdetails": 1},
                     )
-                    data = r.json() if r.status_code == 200 else []
+                    if r.status_code != 200:
+                        raise GeocoderFetchError(f"Nominatim HTTP {r.status_code}")
+                    data = r.json()
+                    successful_response = True
                     for d in (data if isinstance(data, list) else []):
                         try:
                             results.append({
@@ -95,6 +106,12 @@ class Geocoder:
                             continue
             except Exception as e:
                 logger.warning("nominatim forward failed: %s", e)
+
+        if not successful_response:
+            if doc and doc.get("results"):
+                logger.info("geocode forward failed; returning stale cache for %r", q)
+                return doc["results"]
+            raise GeocoderFetchError("Place search providers are unavailable")
 
         try:
             await self.col.update_one(
@@ -118,6 +135,7 @@ class Geocoder:
             return doc.get("result", {})
 
         result = {"locality": None, "region": None, "country": None, "country_code": None}
+        successful_response = False
         try:
             await _throttle_rev()
             async with httpx.AsyncClient(
@@ -127,7 +145,10 @@ class Geocoder:
                     "https://nominatim.openstreetmap.org/reverse",
                     params={"lat": lat, "lon": lng, "format": "json", "zoom": 10, "addressdetails": 1},
                 )
-                data = r.json() if r.status_code == 200 else {}
+                if r.status_code != 200:
+                    raise GeocoderFetchError(f"Nominatim HTTP {r.status_code}")
+                data = r.json()
+                successful_response = True
                 addr = data.get("address") or {}
                 result = {
                     "locality": addr.get("city") or addr.get("town") or addr.get("village") or addr.get("county"),
@@ -137,6 +158,11 @@ class Geocoder:
                 }
         except Exception as e:
             logger.warning("nominatim reverse failed: %s", e)
+        if not successful_response:
+            if doc and doc.get("result"):
+                logger.info("reverse geocode failed; returning stale cache for %s,%s", lat, lng)
+                return doc["result"]
+            return result
         try:
             await self.col.update_one(
                 {"_id": key},

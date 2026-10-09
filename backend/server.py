@@ -22,7 +22,7 @@ from providers.wikipedia import WikipediaProvider
 from providers.osm import OsmPoiProvider
 from providers.ticketmaster import TicketmasterProvider
 from providers.gdelt import GdeltNewsProvider
-from providers.geocoder import Geocoder
+from providers.geocoder import Geocoder, GeocoderFetchError
 from services.nearby import NearbyService
 from security import hash_password, verify_and_update_password
 
@@ -247,7 +247,10 @@ async def nearby(
 
 @api.get("/geocode")
 async def geocode(q: str = Query(max_length=200)):
-    return await geocoder.forward(q)
+    try:
+        return await geocoder.forward(q)
+    except GeocoderFetchError as e:
+        raise HTTPException(status_code=503, detail="Place search is temporarily unavailable") from e
 
 
 # -------------------- AI --------------------
