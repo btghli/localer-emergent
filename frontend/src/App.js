@@ -121,7 +121,7 @@ function MobileLangFab() {
       <DropdownMenuTrigger asChild>
         <button
           data-testid="mobile-lang-trigger"
-          className="md:hidden fixed top-3 right-3 z-[55] w-9 h-9 rounded-full bg-white/95 backdrop-blur-xl border border-white/70 shadow grid place-items-center"
+          className="mobile-top-safe md:hidden fixed top-3 right-3 z-[55] w-9 h-9 rounded-full bg-white/95 backdrop-blur-xl border border-white/70 shadow grid place-items-center"
           aria-label="language"
         >
           <Languages size={14} />

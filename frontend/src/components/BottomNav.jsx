@@ -12,7 +12,7 @@ export default function BottomNav() {
   ];
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-[60] pointer-events-auto"
+      className="mobile-nav-safe md:hidden fixed bottom-0 inset-x-0 z-[60] pointer-events-auto"
       data-testid="bottom-nav"
     >
       <div className="mx-3 mb-3 rounded-2xl bg-white/90 backdrop-blur-xl border border-white/70 shadow-[0_8px_24px_rgba(0,0,0,0.1)] grid grid-cols-3">

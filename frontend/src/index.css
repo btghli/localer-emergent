@@ -53,6 +53,29 @@ h1, h2, h3, h4 {
 .nice-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); border-radius: 999px; }
 .nice-scroll::-webkit-scrollbar-track { background: transparent; }
 
+/* Mobile browser chrome and notches must not cover primary controls. */
+.mobile-nav-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (max-width: 767px) {
+  .mobile-top-safe {
+    top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  }
+  .search-area-safe {
+    top: calc(4rem + env(safe-area-inset-top, 0px));
+  }
+  .location-banner-safe {
+    top: calc(5rem + env(safe-area-inset-top, 0px));
+  }
+  .above-mobile-nav {
+    bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  }
+  .mobile-recenter-safe {
+    bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* Pulsing dot for "you are here" */
 @keyframes locPulse {
   0% { transform: scale(1); opacity: 0.8; }
@@ -66,6 +89,15 @@ h1, h2, h3, h4 {
   border-radius: 999px;
   background: #2563eb;
   animation: locPulse 2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @layer base {

@@ -357,13 +357,13 @@ export default function Explore() {
       />
 
       {/* Search bar — desktop lives inside discovery panel; mobile floats at top */}
-      <div className="md:hidden fixed top-3 left-3 right-14 z-40">
+      <div className="mobile-top-safe md:hidden fixed top-3 left-3 right-14 z-40">
         <SearchBar onPick={onPickPlace} onRecenter={onRecenter} />
       </div>
 
       {/* "Search this area" button — top center, aligned with header */}
       {showMoveBtn && (
-        <div className="fixed top-16 md:top-3 left-1/2 -translate-x-1/2 z-[55] pointer-events-auto">
+        <div className="search-area-safe fixed top-16 md:top-3 left-1/2 -translate-x-1/2 z-[55] pointer-events-auto">
           <Button
             type="button"
             onClick={onSearchArea}
@@ -383,7 +383,7 @@ export default function Explore() {
           onClick={onRecenter}
           data-testid="recenter-btn"
           aria-label={t("recenter")}
-          className="fixed bottom-24 md:bottom-8 right-4 md:right-8 z-40 w-12 h-12 rounded-full bg-white/95 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] grid place-items-center border border-white/70 hover:bg-white"
+          className="mobile-recenter-safe fixed bottom-24 md:bottom-8 right-4 md:right-8 z-40 w-12 h-12 rounded-full bg-white/95 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] grid place-items-center border border-white/70 hover:bg-white"
         >
           <LocateFixed size={18} className="text-zinc-800" />
         </button>
@@ -400,7 +400,7 @@ export default function Explore() {
 
       {/* Location-denied banner */}
       {locationDenied && (
-        <div className="fixed top-20 md:top-20 right-4 md:right-auto md:left-[432px] z-[44] pointer-events-auto">
+        <div className="location-banner-safe fixed top-20 md:top-20 right-4 md:right-auto md:left-[432px] z-[44] pointer-events-auto">
           <div
             data-testid="location-denied-banner"
             className="relative max-w-sm bg-white/95 backdrop-blur-xl border border-amber-200 rounded-2xl shadow-lg pl-4 pr-10 py-3 text-sm text-zinc-800"
@@ -429,10 +429,10 @@ export default function Explore() {
 
       {/* Mobile bottom sheet */}
       <div
-        className="md:hidden fixed bottom-16 left-0 right-0 top-16 z-30 pointer-events-none"
+        className="above-mobile-nav md:hidden fixed bottom-16 left-0 right-0 top-16 z-30 pointer-events-none"
         aria-hidden="true"
       ></div>
-      <div className="md:hidden fixed bottom-16 inset-x-0 z-30 pointer-events-auto">
+      <div className="above-mobile-nav md:hidden fixed bottom-16 inset-x-0 z-30 pointer-events-auto">
         <MobileSheet>{listNode}</MobileSheet>
       </div>
 
