@@ -3,6 +3,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, NavLink, Link } from "react-router-dom";
 import { I18nProvider, useI18n } from "@/context/I18nContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { CapabilitiesProvider } from "@/context/CapabilitiesContext";
 import { Toaster } from "@/components/ui/sonner";
 import BottomNav from "@/components/BottomNav";
 import AuthDialog from "@/components/AuthDialog";
@@ -154,11 +155,13 @@ function Shell() {
 export default function App() {
   return (
     <I18nProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Shell />
-        </BrowserRouter>
-      </AuthProvider>
+      <CapabilitiesProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Shell />
+          </BrowserRouter>
+        </AuthProvider>
+      </CapabilitiesProvider>
     </I18nProvider>
   );
 }

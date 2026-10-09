@@ -32,7 +32,7 @@ load_dotenv(ROOT_DIR / ".env")
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
 JWT_SECRET = os.environ["JWT_SECRET"]
-EMERGENT_LLM_KEY = os.environ["EMERGENT_LLM_KEY"]
+EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
 JWT_ALGO = "HS256"
 JWT_EXP_DAYS = 30
 
@@ -285,6 +285,8 @@ def _item_context(item: NearbyItem) -> str:
 
 @api.post("/ai/ask", response_model=AskOut)
 async def ai_ask(body: AskIn):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=503, detail="AI features are not configured")
     lang_name = "Simplified Chinese" if body.language.startswith("zh") else "English"
     system = (
         f"You are Localer, a concise, grounded local-discovery assistant. "
@@ -312,6 +314,8 @@ async def ai_ask(body: AskIn):
 
 @api.post("/ai/translate", response_model=TranslateOut)
 async def ai_translate(body: TranslateIn):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=503, detail="AI features are not configured")
     target = "zh" if body.target.lower().startswith("zh") else "en"
     if not body.text.strip():
         return TranslateOut(text="")
@@ -335,10 +339,14 @@ async def ai_translate(body: TranslateIn):
     except Exception as e:
         logger.exception("translate failed")
         raise HTTPException(status_code=502, detail="Translation is temporarily unavailable") from e
-    await db.translations.insert_one({
-        "key": cache_key, "target": target, "source_text": body.text,
-        "text": translated, "created_at": datetime.now(timezone.utc).isoformat(),
-    })
+    await db.translations.update_one(
+        {"key": cache_key},
+        {"$setOnInsert": {
+            "key": cache_key, "target": target, "source_text": body.text,
+            "text": translated, "created_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
     return TranslateOut(text=translated)
 
 
@@ -347,6 +355,11 @@ async def ai_translate(body: TranslateIn):
 @api.get("/")
 async def root():
     return {"ok": True, "service": "localer", "providers": [p.name for p in _providers]}
+
+
+@api.get("/capabilities")
+async def capabilities():
+    return {"ai": bool(EMERGENT_LLM_KEY)}
 
 
 @api.get("/providers")
@@ -399,6 +412,9 @@ async def ensure_database_indexes():
     await db.favorites.create_index(
         [("user_id", ASCENDING), ("saved_at", DESCENDING)],
         name="favorites_by_user_recent",
+    )
+    await db.translations.create_index(
+        [("key", ASCENDING)], unique=True, name="uniq_translation_key"
     )
 
 

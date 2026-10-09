@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CAT_MAP } from "@/lib/categories";
 import { useI18n } from "@/context/I18nContext";
 import { useAuth } from "@/context/AuthContext";
+import { useCapabilities } from "@/context/CapabilitiesContext";
 import { Button } from "@/components/ui/button";
 import {
   X,
@@ -40,6 +41,7 @@ function fmt(iso, lang) {
 export default function ItemDetail({ item, onClose, favorites, onToggleFavorite }) {
   const { lang, t } = useI18n();
   const { user, setAuthOpen } = useAuth();
+  const { aiEnabled, loading: capabilitiesLoading } = useCapabilities();
   const [showZh, setShowZh] = useState(lang === "zh");
   const [translation, setTranslation] = useState({ itemId: null, title: null, summary: null });
   const [translating, setTranslating] = useState(false);
@@ -69,6 +71,15 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
       }
       if (item.titleZh && item.summaryZh) {
         setTranslation({ itemId: item.id, title: item.titleZh, summary: item.summaryZh });
+        setTranslating(false);
+        return;
+      }
+      if (!aiEnabled) {
+        setTranslation({
+          itemId: item.id,
+          title: item.titleZh || item.title,
+          summary: item.summaryZh || item.summary,
+        });
         setTranslating(false);
         return;
       }
@@ -106,7 +117,7 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
       cancelled = true;
       controller.abort();
     };
-  }, [item, showZh]);
+  }, [aiEnabled, item, showZh]);
 
   if (!item) return null;
   const cat = CAT_MAP[item.category];
@@ -125,6 +136,7 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
   const approximate = ["city", "region", "neighborhood"].includes(item.locationPrecision);
   const cancelled = item.eventStatus === "cancelled";
   const postponed = item.eventStatus === "postponed";
+  const hasLocalizedContent = Boolean(item.titleZh || item.summaryZh);
 
   const onListen = () => {
     if (ttsState === "playing") {
@@ -274,17 +286,19 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => setShowZh((s) => !s)}
-            data-testid="lang-toggle-btn"
-            variant="secondary"
-            className="rounded-full h-9 px-3 bg-white border border-zinc-200 hover:bg-zinc-50"
-          >
-            <Languages size={14} className="mr-1" />
-            {showZh ? "中文" : "EN"} / {showZh ? "EN" : "中文"}
-          </Button>
+          {(aiEnabled || hasLocalizedContent) && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setShowZh((s) => !s)}
+              data-testid="lang-toggle-btn"
+              variant="secondary"
+              className="rounded-full h-9 px-3 bg-white border border-zinc-200 hover:bg-zinc-50"
+            >
+              <Languages size={14} className="mr-1" />
+              {showZh ? "中文" : "EN"} / {showZh ? "EN" : "中文"}
+            </Button>
+          )}
 
           {(summaryDisplay || titleDisplay) && (
             <Button
@@ -372,7 +386,13 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
           </p>
         )}
 
-        <AskLocalerPanel item={item} />
+        {aiEnabled ? (
+          <AskLocalerPanel item={item} />
+        ) : !capabilitiesLoading ? (
+          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
+            {t("ai_unavailable")}
+          </div>
+        ) : null}
       </div>
     </div>
   );
