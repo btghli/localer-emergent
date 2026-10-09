@@ -1,0 +1,24 @@
+{
+  "summary": "Backend-only testing of multi-provider refactor. 11/11 pytest cases passed in 14.83s. Fabricated demo events ('Weekend Open-Air Market', 'Sunset Jazz in the Park', 'Community Film Night') are no longer served. /api/nearby returns only real wikipedia + osm items for Paris, every item has provider-namespaced externalId and a real sourceUrl (wikipedia.org / openstreetmap.org), isDemo is always false, no google.com/search URLs. /api/nearby?categories=event correctly returns [] since TICKETMASTER_API_KEY is empty — no demo fallback. ProviderCache verified via second call latency and identical externalIds. Ocean coords (0,0) return 200 OK [] without crashing. Auth, favorites, geocode and AI /ask regressions all pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_providers_refactor.py",
+    "/app/test_reports/pytest/pytest_providers.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is ~360 lines and mixes auth/favorites/nearby/geocode/AI — split into routers for maintainability.",
+    "services/nearby.py validation rejects news items with confidenceScore < 0.3; providers that don't set confidenceScore (defaults None -> 0) will have all news items silently dropped. GdeltNewsProvider should either guarantee confidenceScore or the validator should treat None as pass-through.",
+    "/api/providers exposes requires_env (env var names) publicly — fine for debugging but consider gating behind auth or a debug flag in production.",
+    "No rate-limit protection on /api/nearby — repeated uncached requests at different radii could hit Nominatim/Photon/Wikipedia rate limits from a single abusive client."
+  ],
+  "updated_files": ["/app/backend/tests/test_providers_refactor.py"],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "Fresh account registered per test run: tester+provider+<nonce>@example.com / localer-test-123",
+  "seed_data_creation": "Each run registers one fresh user and creates/deletes one favorite. ProviderCache entries for Paris landmarks and reverse-geocode cache for (0,0) populated as a side-effect.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Multi-provider refactor verified. Ticketmaster disabled (empty key -> enabled=false, event category returns []). Wikipedia + OSM live for Paris and return >=3 wiki landmarks. GDELT occasionally returns 0 items (rate limit) — currently filtered by confidenceScore>=0.3 which may be an issue (see code review). If TICKETMASTER_API_KEY gets added, re-run test_nearby_event_empty_when_no_ticketmaster_key — it will need to change expectation.",
+  "rca of the issue": "Previous bug: /api/nearby served hardcoded demo items with sourceUrl=https://google.com/search?q=... Fix (now verified): server replaced with a 4-provider architecture (wikipedia/osm/ticketmaster/gdelt) orchestrated by NearbyService; providers with missing API keys return [] rather than demo data; validator in services/nearby.py explicitly rejects any item whose sourceUrl contains google.com/search; isDemo defaults false and no code path sets it true in production."
+}
