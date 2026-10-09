@@ -1,0 +1,149 @@
+{
+  "theme_strategy": "System-based preference (Light/Dark mode support). Defaults to Light mode as maps are traditionally easier to read outdoors, but provides Dark mode for nighttime navigation.",
+  "typography": {
+    "headings": {
+      "family": "Outfit, sans-serif",
+      "scale": "text-2xl sm:text-3xl lg:text-4xl",
+      "weight": "font-bold",
+      "tracking": "tracking-tight",
+      "usage": "Location titles, Panel headers, Category names"
+    },
+    "body": {
+      "family": "IBM Plex Sans, sans-serif",
+      "scale": "text-sm sm:text-base",
+      "weight": "font-normal",
+      "line_height": "leading-relaxed",
+      "usage": "Descriptions, AI Q&A responses, News snippets (optimized for English and Chinese legibility)"
+    },
+    "labels": {
+      "family": "IBM Plex Sans, sans-serif",
+      "scale": "text-xs",
+      "weight": "font-medium",
+      "tracking": "tracking-wide uppercase",
+      "usage": "Overlines, Distance indicators, Metadata"
+    }
+  },
+  "colors": {
+    "archetype": "Swiss & High-Contrast (Functional Maps)",
+    "surfaces": {
+      "light": {
+        "panel_bg": "bg-white/85",
+        "panel_border": "border-white/40",
+        "card_bg": "bg-gray-50",
+        "text_primary": "text-gray-900",
+        "text_secondary": "text-gray-500"
+      },
+      "dark": {
+        "panel_bg": "bg-black/75",
+        "panel_border": "border-white/10",
+        "card_bg": "bg-neutral-900",
+        "text_primary": "text-white",
+        "text_secondary": "text-neutral-400"
+      }
+    },
+    "categories": {
+      "landmark": "text-purple-600 bg-purple-100 dark:text-purple-300 dark:bg-purple-900/50",
+      "event": "text-orange-600 bg-orange-100 dark:text-orange-300 dark:bg-orange-900/50",
+      "news": "text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-blue-900/50",
+      "food": "text-red-600 bg-red-100 dark:text-red-300 dark:bg-red-900/50",
+      "nature": "text-green-600 bg-green-100 dark:text-green-300 dark:bg-green-900/50"
+    },
+    "brand_primary": "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl backdrop-saturate-150 shadow-[0_8px_32px_rgba(0,0,0,0.12)]",
+    "radii": "rounded-2xl for primary panels, rounded-full for interactive controls and chips, rounded-xl for list items",
+    "borders": "1px delicate inner stroke on all floating panels (border-white/40 light, border-white/10 dark) to separate from map",
+    "map_tiles": "Leaflet with OpenStreetMap. Consider using a muted/grayscale tile style or custom CSS filters on the map tiles to ensure the vibrant category markers stand out."
+  },
+  "grids": {
+    "system": "Absolute positioning for map layout + Flexbox/Grid for panel contents.",
+    "list_grid": "grid-cols-1 for lists, gap-4 between items."
+  },
+  "layouts": {
+    "root": "h-screen w-full relative overflow-hidden",
+    "map_container": "absolute inset-0 z-0",
+    "desktop": {
+      "discovery_panel": "fixed left-4 top-4 bottom-4 w-[400px] z-40 flex flex-col pointer-events-auto",
+      "search_bar": "fixed top-4 left-1/2 -translate-x-1/2 z-40 w-[480px] pointer-events-auto",
+      "map_controls": "fixed bottom-8 right-8 z-40 flex flex-col gap-2 pointer-events-auto"
+    },
+    "mobile": {
+      "search_header": "fixed top-0 left-0 right-0 p-4 z-40 pointer-events-auto",
+      "bottom_sheet": "fixed bottom-0 left-0 right-0 z-50 h-[60vh] rounded-t-3xl pointer-events-auto (use framer-motion)"
+    }
+  },
+  "motion": {
+    "panel_transitions": "transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease",
+    "list_stagger": "Framer motion staggered entrance for list items in the discovery panel",
+    "bottom_sheet": "Framer motion drag controls for mobile bottom sheet (drag='y')",
+    "hover_states": "-translate-y-0.5 shadow-md scale-[1.02] on interactive cards"
+  },
+  "accessibility": {
+    "contrast": "Ensure text inside glass panels passes APCA against map backgrounds",
+    "focus": "focus-visible:ring-2 focus-visible:ring-black dark:focus-visible:ring-white focus:outline-none rounded",
+    "data_testid": "MANDATORY on all interactive elements (e.g., data-testid='category-filter-food', data-testid='tts-listen-btn')",
+    "aria": "aria-hidden='true' on purely decorative icons. Descriptive aria-labels on icon-only buttons (like map controls)"
+  },
+  "media": {
+    "image_constraints": "object-cover, h-48 w-full on detail views, h-24 w-24 rounded-lg on list views",
+    "icons": "lucide-react for all interface icons. Use clear, geographic-style iconography."
+  },
+  "3d_libraries": {
+    "map": "Leaflet (react-leaflet). NOT 3D, but interactive 2D canvas. Used for the core spatial experience."
+  },
+  "image_urls": {
+    "historic_landmark": {
+      "url": "https://images.unsplash.com/photo-1688520820847-2d0c81c464ea?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwxfHxoaXN0b3JpYyUyMGxhbmRtYXJrfGVufDB8fHx8MTc5MTU2NTkzNXww&ixlib=rb-4.1.0&q=85",
+      "description": "Tropical beach/landmark placeholder",
+      "category": "landmark"
+    },
+    "concert_event": {
+      "url": "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwxfHxjb25jZXJ0JTIwZXZlbnR8ZW58MHx8fHwxNzkxNTY1OTM1fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Concert event with crowd and lights",
+      "category": "event"
+    },
+    "restaurant_food": {
+      "url": "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwxfHxyZXN0YXVyYW50JTIwZm9vZHxlbnwwfHx8fDE3OTE1NjU5MzR8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Dish on white ceramic plate in restaurant",
+      "category": "food"
+    },
+    "nature_park": {
+      "url": "https://images.unsplash.com/photo-1758451943784-8d557e873277?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwxfHxzY2VuaWMlMjBuYXR1cmUlMjBwYXJrfGVufDB8fHx8MTc5MTU2NTkzNXww&ixlib=rb-4.1.0&q=85",
+      "description": "Peaceful park scene with lamp post",
+      "category": "nature"
+    },
+    "local_news": {
+      "url": "https://images.unsplash.com/photo-1504711434969-e33886168f5c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwxfHxsb2NhbCUyMG5ld3MlMjBuYXR1cmV8ZW58MHx8fHwxNzkxNTY1OTQxfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Business newspaper article",
+      "category": "news"
+    }
+  },
+  "component_path": "/app/frontend/src/components/ui/",
+  "component_name": "Shadcn UI (JavaScript/JSX). Do NOT generate .tsx files, use .jsx or .js",
+  "instructions_to_main_agent": [
+    "Ensure map occupies the background fully (`absolute inset-0`), and UI overlays map with high z-index and pointer-events-auto where clickable, pointer-events-none on containers to allow map interaction.",
+    "Use framer-motion for the mobile bottom sheet and desktop side panel transitions.",
+    "Implement Web Speech API for TTS reading the description in either EN or ZH based on current toggle.",
+    "Bilingual support: include a button to toggle descriptions between EN and 中文.",
+    "DO NOT use a completely transparent header/panel. All floating UI over the map MUST have backdrop-blur and a semi-solid background (e.g. bg-white/80).",
+    "Create dynamic marker icons in Leaflet by using custom HTML divs with Tailwind classes (rounded-full, bg-color, text-white) representing categories.",
+    "Use standard Leaflet via react-leaflet; no Google Maps keys needed."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition. Eg: `transition: all`.",
+    "You MUST NOT center align the app container, ie do not add `.App { text-align: center; }` in the css file.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons. Use lucide-react.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "Main agent relies on these image URLs. Missing categories = main agent will use placeholder text which is FORBIDDEN.",
+    "All interactive and key informational elements MUST include a `data-testid` attribute.",
+    "Use sonner for toasts. Sonner component located in /app/frontend/src/components/ui/sonner.jsx or .js"
+  ],
+  "GENERAL UI UX DESIGN GUIDELINES": "Adopt an 'optical clarity' glassmorphism style. The interface acts as a transparent lens over the physical world. Map content is the hero; UI is the minimal frame. Avoid heavy blocks of solid color. Prioritize legibility with high contrast typography against blurred backgrounds."
+}

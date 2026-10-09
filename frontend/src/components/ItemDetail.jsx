@@ -1,0 +1,305 @@
+import React, { useEffect, useState } from "react";
+import { CAT_MAP, DEMO_IMAGES } from "@/lib/categories";
+import { useI18n } from "@/context/I18nContext";
+import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/button";
+import {
+  X,
+  ExternalLink,
+  MapPin,
+  Clock,
+  Heart,
+  Volume2,
+  Pause,
+  Play,
+  Square,
+  Languages,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
+import { contentApi, favApi } from "@/lib/api";
+import { speak, pause as ttsPause, resume as ttsResume, stop as ttsStop } from "@/lib/tts";
+import { toast } from "sonner";
+import AskLocalerPanel from "./AskLocalerPanel";
+
+function fmt(iso, lang) {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleString(lang === "zh" ? "zh-CN" : "en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return null;
+  }
+}
+
+export default function ItemDetail({ item, onClose, favorites, onToggleFavorite }) {
+  const { lang, t } = useI18n();
+  const { user, setAuthOpen } = useAuth();
+  const [showZh, setShowZh] = useState(lang === "zh");
+  const [translatedTitle, setTranslatedTitle] = useState(null);
+  const [translatedSummary, setTranslatedSummary] = useState(null);
+  const [translating, setTranslating] = useState(false);
+  const [ttsState, setTtsState] = useState("idle"); // idle | playing | paused
+
+  useEffect(() => {
+    setShowZh(lang === "zh");
+  }, [item?.id, lang]);
+
+  useEffect(() => {
+    return () => ttsStop();
+  }, [item?.id]);
+
+  useEffect(() => {
+    const translate = async () => {
+      if (!item) return;
+      if (!showZh) {
+        setTranslatedTitle(null);
+        setTranslatedSummary(null);
+        return;
+      }
+      if (item.titleZh && item.summaryZh) {
+        setTranslatedTitle(item.titleZh);
+        setTranslatedSummary(item.summaryZh);
+        return;
+      }
+      setTranslating(true);
+      try {
+        const [tTitle, tSum] = await Promise.all([
+          contentApi.translate(item.title, "zh"),
+          contentApi.translate(item.summary || "", "zh"),
+        ]);
+        setTranslatedTitle(tTitle.text);
+        setTranslatedSummary(tSum.text);
+      } catch {
+        setTranslatedTitle(item.title);
+        setTranslatedSummary(item.summary);
+      } finally {
+        setTranslating(false);
+      }
+    };
+    translate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.id, showZh]);
+
+  if (!item) return null;
+  const cat = CAT_MAP[item.category];
+  const Icon = cat?.icon;
+  const img = item.imageUrl || DEMO_IMAGES[item.category];
+
+  const titleDisplay = showZh ? translatedTitle || item.title : item.title;
+  const summaryDisplay = showZh
+    ? translatedSummary || item.summary
+    : item.summary;
+
+  const isFav = favorites?.has(item.externalId);
+  const date = fmt(item.startsAt || item.publishedAt, lang);
+  const approximate = item.locationPrecision === "city" || item.locationPrecision === "region" || item.locationPrecision === "neighborhood";
+
+  const onListen = () => {
+    if (ttsState === "playing") {
+      ttsPause();
+      setTtsState("paused");
+      return;
+    }
+    if (ttsState === "paused") {
+      ttsResume();
+      setTtsState("playing");
+      return;
+    }
+    const text = `${titleDisplay}. ${summaryDisplay || ""}`;
+    speak(text, { lang: showZh ? "zh" : "en" });
+    setTtsState("playing");
+    const check = setInterval(() => {
+      if (!window.speechSynthesis?.speaking && !window.speechSynthesis?.paused) {
+        setTtsState("idle");
+        clearInterval(check);
+      }
+    }, 400);
+  };
+
+  const onStop = () => {
+    ttsStop();
+    setTtsState("idle");
+  };
+
+  const onFav = async () => {
+    if (!user) {
+      setAuthOpen(true);
+      return;
+    }
+    try {
+      if (isFav) {
+        await favApi.remove(item.externalId);
+        onToggleFavorite(item.externalId, false);
+      } else {
+        await favApi.add(item);
+        onToggleFavorite(item.externalId, true);
+        toast.success(t("saved"));
+      }
+    } catch {
+      toast.error("Failed");
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="relative shrink-0">
+        {img && (
+          <div className="h-40 sm:h-48 w-full overflow-hidden rounded-t-3xl">
+            <img src={img} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
+        <button
+          type="button"
+          data-testid="detail-close-btn"
+          onClick={onClose}
+          className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/95 backdrop-blur-xl shadow-md grid place-items-center hover:bg-white"
+          aria-label={t("close")}
+        >
+          <X size={16} />
+        </button>
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-white/95 backdrop-blur-xl rounded-full pl-2 pr-3 py-1 shadow-md">
+          {Icon && <Icon size={13} style={{ color: cat.color }} aria-hidden="true" />}
+          <span className="text-xs font-semibold" style={{ color: cat.color }}>
+            {lang === "zh" ? cat.labelZh : cat.labelEn}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto nice-scroll px-4 sm:px-5 pt-4 pb-6 space-y-4">
+        <div>
+          <h2
+            data-testid="detail-title"
+            className="font-display text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight"
+          >
+            {titleDisplay}
+          </h2>
+          {showZh && translatedTitle && translatedTitle !== item.title && (
+            <p className="text-xs text-zinc-500 mt-1">
+              {t("original_name")}: <span className="text-zinc-700">{item.title}</span>
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-zinc-600">
+            <span className="inline-flex items-center gap-1">
+              <MapPin size={12} />
+              {item.distanceMeters != null
+                ? item.distanceMeters < 1000
+                  ? `${Math.round(item.distanceMeters)} ${t("m")}`
+                  : `${(item.distanceMeters / 1000).toFixed(1)} ${t("km")}`
+                : "—"}
+            </span>
+            {date && (
+              <span className="inline-flex items-center gap-1">
+                <Clock size={12} /> {date}
+              </span>
+            )}
+          </div>
+          {approximate && (
+            <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+              <AlertTriangle size={11} /> {t("approx_location")}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setShowZh((s) => !s)}
+            data-testid="lang-toggle-btn"
+            variant="secondary"
+            className="rounded-full h-9 px-3 bg-white border border-zinc-200 hover:bg-zinc-50"
+          >
+            <Languages size={14} className="mr-1" />
+            {showZh ? "中文" : "EN"} / {showZh ? "EN" : "中文"}
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            onClick={onListen}
+            disabled={translating}
+            data-testid="tts-listen-btn"
+            className="rounded-full h-9 px-3 bg-zinc-900 text-white hover:bg-zinc-800"
+          >
+            {ttsState === "playing" ? (
+              <>
+                <Pause size={14} className="mr-1" /> {t("pause")}
+              </>
+            ) : ttsState === "paused" ? (
+              <>
+                <Play size={14} className="mr-1" /> {t("resume")}
+              </>
+            ) : (
+              <>
+                <Volume2 size={14} className="mr-1" /> {t("listen")}
+              </>
+            )}
+          </Button>
+          {ttsState !== "idle" && (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={onStop}
+              data-testid="tts-stop-btn"
+              className="rounded-full h-9 px-3 bg-white border border-zinc-200"
+            >
+              <Square size={14} className="mr-1" /> {t("stop")}
+            </Button>
+          )}
+
+          <Button
+            type="button"
+            size="sm"
+            onClick={onFav}
+            data-testid="fav-toggle-btn"
+            variant="secondary"
+            className={`rounded-full h-9 px-3 border ${
+              isFav
+                ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
+                : "bg-white border-zinc-200 hover:bg-zinc-50"
+            }`}
+          >
+            <Heart size={14} className="mr-1" fill={isFav ? "currentColor" : "none"} />
+            {isFav ? t("saved") : t("save")}
+          </Button>
+        </div>
+
+        <div>
+          <p className="text-[11px] uppercase tracking-wide font-semibold text-zinc-500 mb-1">
+            {t("description")}
+          </p>
+          {translating ? (
+            <p className="text-sm text-zinc-500 inline-flex items-center gap-1">
+              <Loader2 size={14} className="animate-spin" /> {t("translating")}
+            </p>
+          ) : (
+            <p
+              data-testid="detail-summary"
+              className="text-[15px] text-zinc-800 leading-relaxed whitespace-pre-wrap"
+            >
+              {summaryDisplay}
+            </p>
+          )}
+        </div>
+
+        {item.sourceUrl && (
+          <a
+            href={item.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="detail-source-link"
+            className="inline-flex items-center gap-1.5 text-sm text-zinc-700 underline underline-offset-4 hover:text-zinc-900"
+          >
+            {t("source")}: {item.sourceName} <ExternalLink size={13} />
+          </a>
+        )}
+
+        <AskLocalerPanel item={item} />
+      </div>
+    </div>
+  );
+}
