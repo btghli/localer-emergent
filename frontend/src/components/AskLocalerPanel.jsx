@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/context/I18nContext";
+import { useAuth } from "@/context/AuthContext";
 import { contentApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +10,7 @@ import { toast } from "sonner";
 
 export default function AskLocalerPanel({ item }) {
   const { lang, t } = useI18n();
+  const { user } = useAuth();
   const [q, setQ] = useState("");
   const [thread, setThread] = useState([]); // {role: 'user'|'ai', text, sourceUrl?}
   const [loading, setLoading] = useState(false);
@@ -47,7 +49,7 @@ export default function AskLocalerPanel({ item }) {
       return;
     }
     ttsStop();
-    speak(text, { lang });
+    speak(text, { lang, voiceName: user?.tts_voice });
     setSpeaking(idx);
     const check = setInterval(() => {
       if (!window.speechSynthesis?.speaking) {

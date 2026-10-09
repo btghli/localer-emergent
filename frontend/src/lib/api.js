@@ -1,7 +1,10 @@
 import axios from "axios";
 
-const BASE = process.env.REACT_APP_BACKEND_URL;
-export const API = `${BASE}/api`;
+const BASE = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "");
+// Support both split frontend/backend development and a conventional
+// same-origin production deployment. An unset variable must never produce
+// requests to the literal URL "undefined/api".
+export const API = BASE ? `${BASE}/api` : "/api";
 
 export const http = axios.create({ baseURL: API, timeout: 20000 });
 

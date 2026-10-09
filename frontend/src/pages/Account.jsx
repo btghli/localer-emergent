@@ -42,8 +42,10 @@ export default function Account() {
     if (user) {
       try {
         await updateSettings({ tts_voice: name });
-        toast.success("Saved");
-      } catch {}
+        toast.success(t("settings_saved"));
+      } catch {
+        toast.error(t("settings_error"));
+      }
     }
   };
 
@@ -127,10 +129,10 @@ export default function Account() {
               </label>
               <Select value={voiceName || "auto"} onValueChange={(v) => changeVoice(v === "auto" ? "" : v)}>
                 <SelectTrigger data-testid="settings-voice-select" className="rounded-xl h-10 bg-white">
-                  <SelectValue placeholder="Auto" />
+                  <SelectValue placeholder={t("voice_auto")} />
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
-                  <SelectItem value="auto">Auto</SelectItem>
+                  <SelectItem value="auto">{t("voice_auto")}</SelectItem>
                   {voices
                     .filter((v) => /^(en|zh)/i.test(v.lang || ""))
                     .map((v) => (

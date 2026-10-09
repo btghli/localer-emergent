@@ -115,7 +115,10 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
       return;
     }
     const text = `${titleDisplay}. ${summaryDisplay || ""}`;
-    speak(text, { lang: showZh ? "zh" : "en" });
+    speak(text, {
+      lang: showZh ? "zh" : "en",
+      voiceName: user?.tts_voice,
+    });
     setTtsState("playing");
     const check = setInterval(() => {
       if (!window.speechSynthesis?.speaking && !window.speechSynthesis?.paused) {
