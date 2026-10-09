@@ -104,15 +104,25 @@ export default function Explore() {
   const onMapMoveEnd = (c, z) => {
     setMapCenter({ lat: c.lat, lng: c.lng });
     setZoom(z);
-    if (!center) return;
+    if (!center) {
+      setShowMoveBtn(false);
+      return;
+    }
     const dLat = Math.abs(center.lat - c.lat);
     const dLng = Math.abs(center.lng - c.lng);
-    if (dLat > 0.004 || dLng > 0.004) setShowMoveBtn(true);
+    // Keep the control in sync in both directions. Previously it was only
+    // ever set to true, so a programmatic fly-back could leave behind a stale
+    // button whose click did not change the search coordinates.
+    setShowMoveBtn(dLat > 0.004 || dLng > 0.004);
   };
 
   const onSearchArea = () => {
     if (!mapCenter) return;
-    setCenter(mapCenter);
+    // Snapshot Leaflet's current center and acknowledge the click
+    // immediately. Updating center triggers the nearby request effect.
+    setShowMoveBtn(false);
+    setSelected(null);
+    setCenter({ lat: mapCenter.lat, lng: mapCenter.lng });
   };
 
   const onRecenter = () => {

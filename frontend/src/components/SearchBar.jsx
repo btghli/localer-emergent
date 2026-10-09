@@ -10,28 +10,63 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const timerRef = useRef(null);
   const containerRef = useRef(null);
+  const requestRef = useRef(0);
+  const skipNextSearchRef = useRef(false);
 
   useEffect(() => {
-    if (!q.trim()) {
+    const query = q.trim();
+    clearTimeout(timerRef.current);
+
+    // Selecting a result writes its label into the input. Do not immediately
+    // search that label again and reopen the menu.
+    if (skipNextSearchRef.current) {
+      skipNextSearchRef.current = false;
       setResults([]);
+      setOpen(false);
+      setLoading(false);
+      setSearched(false);
       return;
     }
+
+    if (!query) {
+      requestRef.current += 1;
+      setResults([]);
+      setOpen(false);
+      setLoading(false);
+      setSearched(false);
+      setActiveIndex(-1);
+      return;
+    }
+
     setLoading(true);
-    clearTimeout(timerRef.current);
+    setSearched(false);
+    setActiveIndex(-1);
     timerRef.current = setTimeout(async () => {
+      const requestId = ++requestRef.current;
       try {
-        const r = await contentApi.geocode(q.trim());
+        const r = await contentApi.geocode(query);
+        if (requestId !== requestRef.current) return;
         setResults(r || []);
         setOpen(true);
       } catch {
+        if (requestId !== requestRef.current) return;
         setResults([]);
+        setOpen(true);
       } finally {
-        setLoading(false);
+        if (requestId === requestRef.current) {
+          setLoading(false);
+          setSearched(true);
+        }
       }
     }, 350);
-    return () => clearTimeout(timerRef.current);
+    return () => {
+      clearTimeout(timerRef.current);
+      requestRef.current += 1;
+    };
   }, [q]);
 
   useEffect(() => {
@@ -43,9 +78,33 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
   }, []);
 
   const pick = (r) => {
+    skipNextSearchRef.current = true;
     setOpen(false);
+    setResults([]);
+    setActiveIndex(-1);
     setQ(r.display_name);
     onPick({ lat: r.lat, lng: r.lng, label: r.display_name });
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === "Escape") {
+      setOpen(false);
+      setActiveIndex(-1);
+      return;
+    }
+    if (!results.length) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setOpen(true);
+      setActiveIndex((i) => (i + 1) % results.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setOpen(true);
+      setActiveIndex((i) => (i <= 0 ? results.length - 1 : i - 1));
+    } else if (e.key === "Enter" && open && activeIndex >= 0) {
+      e.preventDefault();
+      pick(results[activeIndex]);
+    }
   };
 
   return (
@@ -64,10 +123,16 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onFocus={() => results.length && setOpen(true)}
+          onKeyDown={onKeyDown}
           placeholder={t("search_placeholder")}
           className="pl-9 pr-9 h-11 text-sm rounded-full bg-white/90 backdrop-blur-xl border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.08)] focus-visible:ring-zinc-900 truncate placeholder:truncate"
           data-testid="global-search-input"
           aria-label={t("search_placeholder")}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls="location-search-results"
+          aria-activedescendant={activeIndex >= 0 ? `location-result-${activeIndex}` : undefined}
         />
         {loading && (
           <Loader2
@@ -80,9 +145,13 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
             type="button"
             data-testid="search-clear-btn"
             onClick={() => {
+              requestRef.current += 1;
               setQ("");
               setResults([]);
               setOpen(false);
+              setLoading(false);
+              setSearched(false);
+              setActiveIndex(-1);
             }}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-zinc-100"
             aria-label="clear"
@@ -106,22 +175,41 @@ export default function SearchBar({ onPick, onRecenter, showRecenter = true }) {
 
       {open && results.length > 0 && (
         <ul
+          id="location-search-results"
+          role="listbox"
           className="absolute left-0 right-0 top-full mt-2 max-h-80 overflow-auto nice-scroll rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-xl p-1 z-50"
           data-testid="search-results"
         >
           {results.map((r, i) => (
-            <li key={`${r.lat}-${r.lng}-${i}`}>
+            <li
+              key={`${r.lat}-${r.lng}-${i}`}
+              id={`location-result-${i}`}
+              role="option"
+              aria-selected={activeIndex === i}
+            >
               <button
                 type="button"
                 data-testid={`search-result-${i}`}
                 onClick={() => pick(r)}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-100 text-sm text-zinc-800"
+                onMouseEnter={() => setActiveIndex(i)}
+                className={`w-full text-left px-3 py-2 rounded-xl text-sm text-zinc-800 transition-colors ${
+                  activeIndex === i ? "bg-zinc-100" : "hover:bg-zinc-100"
+                }`}
               >
                 {r.display_name}
               </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {open && searched && !loading && q.trim() && results.length === 0 && (
+        <div
+          role="status"
+          className="absolute left-0 right-0 top-full mt-2 rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-xl px-4 py-3 z-50 text-sm text-zinc-600"
+        >
+          {t("search_no_results")}
+        </div>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -48,14 +48,18 @@ function MapEvents({ onMoveEnd, onClick }) {
   return null;
 }
 
-function Controller({ center, zoom }) {
+function Controller({ center, zoom, flyToKey }) {
   const map = useMap();
   useEffect(() => {
-    if (center) {
+    // Only move the camera for an explicit recenter/place-selection action.
+    // Depending on center/zoom here makes a user zoom emit moveend, update the
+    // React zoom state, and then snap the map back to the previous search
+    // center.  Search-this-area already has the camera in the right place.
+    if (center && flyToKey > 0) {
       map.flyTo([center.lat, center.lng], zoom ?? map.getZoom(), { duration: 0.6 });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center?.lat, center?.lng, zoom]);
+  }, [flyToKey]);
   return null;
 }
 
@@ -70,7 +74,9 @@ export default function MapView({
   onBackgroundClick,
   flyToKey,
 }) {
-  const defaultCenter = useMemo(() => center || userLocation || { lat: 40.7128, lng: -74.006 }, []);
+  // Leaflet owns camera movement after mount; keep only the first center here
+  // and route later programmatic moves through Controller.
+  const defaultCenter = useRef(center || userLocation || { lat: 40.7128, lng: -74.006 }).current;
   const mapRef = useRef(null);
 
   return (
@@ -88,7 +94,7 @@ export default function MapView({
         maxZoom={19}
       />
 
-      <Controller center={flyToKey ? center : null} zoom={zoom} />
+      <Controller center={center} zoom={zoom} flyToKey={flyToKey} />
       <MapEvents onMoveEnd={onMoveEnd} onClick={onBackgroundClick} />
 
       {userLocation && (

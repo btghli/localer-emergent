@@ -27,10 +27,14 @@ CATEGORY_TTL = {
 # Cache cell precision (digits of lat/lng rounding)
 CATEGORY_CELL = {
     "news": 1,       # ~11 km — city-level
-    "event": 2,      # ~1.1 km
-    "landmark": 2,
-    "food": 2,
-    "nature": 2,
+    # Precise/venue content needs a finer cell. The UI offers a new search
+    # after roughly 0.004 degrees of movement; 3 digits (~110 m latitude)
+    # guarantees that such a move cannot silently reuse the previous area's
+    # venue cache entry.
+    "event": 3,
+    "landmark": 3,
+    "food": 3,
+    "nature": 3,
 }
 
 AUTHORITY_WEIGHT = {
@@ -91,6 +95,18 @@ class NearbyService:
         for it in all_results:
             if it.latitude is not None and it.longitude is not None:
                 it.distanceMeters = distance_m(lat, lng, it.latitude, it.longitude)
+
+        # Cached provider payloads are shared within a geographic cell. Apply
+        # the exact request radius again after recomputing distance so a cache
+        # hit cannot return precise venues that belong to the previous center.
+        # City/region-level news coordinates are representative rather than
+        # exact, so radius filtering them would incorrectly discard local news.
+        all_results = [
+            it for it in all_results
+            if it.distanceMeters is None
+            or it.locationPrecision in {"city", "region", "neighborhood"}
+            or it.distanceMeters <= radius_m
+        ]
 
         # Validation (category-specific)
         validated = [it for it in all_results if self._validate(it)]
