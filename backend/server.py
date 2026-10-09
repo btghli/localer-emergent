@@ -3,6 +3,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import ASCENDING, DESCENDING
+from pymongo.errors import DuplicateKeyError
 import os
 import logging
 import uuid
@@ -145,12 +147,17 @@ async def register(body: RegisterIn):
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Email already registered")
     uid = str(uuid.uuid4())
-    await db.users.insert_one({
-        "id": uid, "email": email, "name": body.name,
-        "language": "en", "tts_voice": None,
-        "password_hash": hash_password(body.password),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    })
+    try:
+        await db.users.insert_one({
+            "id": uid, "email": email, "name": body.name,
+            "language": "en", "tts_voice": None,
+            "password_hash": hash_password(body.password),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    except DuplicateKeyError:
+        # The unique database constraint, not the preflight read above, is
+        # authoritative when two registrations race.
+        raise HTTPException(status_code=400, detail="Email already registered")
     user = User(id=uid, email=email, name=body.name, language="en")
     return AuthOut(token=_make_token(uid), user=user)
 
@@ -202,17 +209,19 @@ async def list_favs(user: User = Depends(current_user)):
 @api.post("/favorites")
 async def add_fav(body: FavoriteIn, user: User = Depends(current_user)):
     key = body.item.externalId or body.item.id
-    if await db.favorites.find_one({"user_id": user.id, "key": key}):
-        return {"ok": True, "duplicate": True}
-    await db.favorites.insert_one({
-        "user_id": user.id, "key": key,
-        "item": body.item.model_dump(),
-        "saved_at": datetime.now(timezone.utc).isoformat(),
-    })
-    return {"ok": True, "duplicate": False}
+    result = await db.favorites.update_one(
+        {"user_id": user.id, "key": key},
+        {"$setOnInsert": {
+            "user_id": user.id, "key": key,
+            "item": body.item.model_dump(),
+            "saved_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"ok": True, "duplicate": result.upserted_id is None}
 
 
-@api.delete("/favorites/{key}")
+@api.delete("/favorites/{key:path}")
 async def rm_fav(key: str, user: User = Depends(current_user)):
     await db.favorites.delete_one({"user_id": user.id, "key": key})
     return {"ok": True}
@@ -371,6 +380,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def ensure_database_indexes():
+    """Enforce identity/favorite invariants and keep common reads indexed."""
+    await db.users.create_index(
+        [("email", ASCENDING)], unique=True, name="uniq_users_email"
+    )
+    await db.users.create_index(
+        [("id", ASCENDING)], unique=True, name="uniq_users_id"
+    )
+    await db.favorites.create_index(
+        [("user_id", ASCENDING), ("key", ASCENDING)],
+        unique=True,
+        name="uniq_favorite_per_user",
+    )
+    await db.favorites.create_index(
+        [("user_id", ASCENDING), ("saved_at", DESCENDING)],
+        name="favorites_by_user_recent",
+    )
 
 
 @app.on_event("shutdown")
