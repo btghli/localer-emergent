@@ -99,7 +99,7 @@ export default function MapView({
         />
       )}
 
-      {items?.map((it) => (
+      {items?.filter((it) => it.latitude != null && it.longitude != null).map((it) => (
         <Marker
           key={it.id}
           position={[it.latitude, it.longitude]}

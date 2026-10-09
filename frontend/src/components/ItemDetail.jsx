@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CAT_MAP, DEMO_IMAGES } from "@/lib/categories";
+import { CAT_MAP } from "@/lib/categories";
 import { useI18n } from "@/context/I18nContext";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,9 @@ import {
   Languages,
   AlertTriangle,
   Loader2,
+  Beaker,
+  Archive,
+  Ban,
 } from "lucide-react";
 import { contentApi, favApi } from "@/lib/api";
 import { speak, pause as ttsPause, resume as ttsResume, stop as ttsStop } from "@/lib/tts";
@@ -41,7 +44,7 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
   const [translatedTitle, setTranslatedTitle] = useState(null);
   const [translatedSummary, setTranslatedSummary] = useState(null);
   const [translating, setTranslating] = useState(false);
-  const [ttsState, setTtsState] = useState("idle"); // idle | playing | paused
+  const [ttsState, setTtsState] = useState("idle");
 
   useEffect(() => {
     setShowZh(lang === "zh");
@@ -64,10 +67,11 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
         setTranslatedSummary(item.summaryZh);
         return;
       }
+      if (!item.summary && !item.title) return;
       setTranslating(true);
       try {
         const [tTitle, tSum] = await Promise.all([
-          contentApi.translate(item.title, "zh"),
+          contentApi.translate(item.title || "", "zh"),
           contentApi.translate(item.summary || "", "zh"),
         ]);
         setTranslatedTitle(tTitle.text);
@@ -86,16 +90,18 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
   if (!item) return null;
   const cat = CAT_MAP[item.category];
   const Icon = cat?.icon;
-  const img = item.imageUrl || DEMO_IMAGES[item.category];
+  const hasImage = item.imageUrl && !item.imageIsFallback;
 
   const titleDisplay = showZh ? translatedTitle || item.title : item.title;
   const summaryDisplay = showZh
-    ? translatedSummary || item.summary
-    : item.summary;
+    ? translatedSummary || item.summary || ""
+    : item.summary || "";
 
   const isFav = favorites?.has(item.externalId);
   const date = fmt(item.startsAt || item.publishedAt, lang);
-  const approximate = item.locationPrecision === "city" || item.locationPrecision === "region" || item.locationPrecision === "neighborhood";
+  const approximate = ["city", "region", "neighborhood"].includes(item.locationPrecision);
+  const cancelled = item.eventStatus === "cancelled";
+  const postponed = item.eventStatus === "postponed";
 
   const onListen = () => {
     if (ttsState === "playing") {
@@ -146,9 +152,21 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
   return (
     <div className="flex flex-col h-full">
       <div className="relative shrink-0">
-        {img && (
+        {hasImage ? (
           <div className="h-40 sm:h-48 w-full overflow-hidden rounded-t-3xl">
-            <img src={img} alt="" className="w-full h-full object-cover" />
+            <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div
+            className="h-32 sm:h-36 w-full rounded-t-3xl grid place-items-center relative"
+            style={{
+              background: `linear-gradient(135deg, ${cat?.color}24, ${cat?.color}0a 70%)`,
+            }}
+          >
+            {Icon && <Icon size={38} style={{ color: cat?.color, opacity: 0.65 }} />}
+            <span className="absolute bottom-2 right-3 text-[10px] uppercase tracking-wider text-zinc-500">
+              {t("no_image_provided")}
+            </span>
           </div>
         )}
         <button
@@ -170,10 +188,7 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
 
       <div className="flex-1 overflow-y-auto nice-scroll px-4 sm:px-5 pt-4 pb-6 space-y-4">
         <div>
-          <h2
-            data-testid="detail-title"
-            className="font-display text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight"
-          >
+          <h2 data-testid="detail-title" className="font-display text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
             {titleDisplay}
           </h2>
           {showZh && translatedTitle && translatedTitle !== item.title && (
@@ -182,25 +197,49 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
             </p>
           )}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-zinc-600">
-            <span className="inline-flex items-center gap-1">
-              <MapPin size={12} />
-              {item.distanceMeters != null
-                ? item.distanceMeters < 1000
+            {item.distanceMeters != null && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin size={12} />
+                {item.distanceMeters < 1000
                   ? `${Math.round(item.distanceMeters)} ${t("m")}`
-                  : `${(item.distanceMeters / 1000).toFixed(1)} ${t("km")}`
-                : "—"}
-            </span>
+                  : `${(item.distanceMeters / 1000).toFixed(1)} ${t("km")}`}
+              </span>
+            )}
             {date && (
               <span className="inline-flex items-center gap-1">
                 <Clock size={12} /> {date}
               </span>
             )}
+            {item.venueName && <span className="truncate max-w-[200px]">{item.venueName}</span>}
           </div>
-          {approximate && (
-            <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
-              <AlertTriangle size={11} /> {t("approx_location")}
-            </div>
-          )}
+
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            {approximate && (
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                <AlertTriangle size={11} /> {t("approx_location")}
+              </div>
+            )}
+            {item.isDemo && (
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                <Beaker size={11} /> {t("demo_content")}
+              </div>
+            )}
+            {item.stale && (
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-slate-700 bg-slate-100 border border-slate-200 rounded-full px-2.5 py-1">
+                <Archive size={11} /> {t("stale_content")}
+              </div>
+            )}
+            {cancelled && (
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-rose-800 bg-rose-50 border border-rose-200 rounded-full px-2.5 py-1">
+                <Ban size={11} /> {t("event_cancelled")}
+              </div>
+            )}
+            {postponed && (
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-indigo-800 bg-indigo-50 border border-indigo-200 rounded-full px-2.5 py-1">
+                <AlertTriangle size={11} /> {t("event_postponed")}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
@@ -216,28 +255,24 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
             {showZh ? "中文" : "EN"} / {showZh ? "EN" : "中文"}
           </Button>
 
-          <Button
-            type="button"
-            size="sm"
-            onClick={onListen}
-            disabled={translating}
-            data-testid="tts-listen-btn"
-            className="rounded-full h-9 px-3 bg-zinc-900 text-white hover:bg-zinc-800"
-          >
-            {ttsState === "playing" ? (
-              <>
-                <Pause size={14} className="mr-1" /> {t("pause")}
-              </>
-            ) : ttsState === "paused" ? (
-              <>
-                <Play size={14} className="mr-1" /> {t("resume")}
-              </>
-            ) : (
-              <>
-                <Volume2 size={14} className="mr-1" /> {t("listen")}
-              </>
-            )}
-          </Button>
+          {(summaryDisplay || titleDisplay) && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onListen}
+              disabled={translating}
+              data-testid="tts-listen-btn"
+              className="rounded-full h-9 px-3 bg-zinc-900 text-white hover:bg-zinc-800"
+            >
+              {ttsState === "playing" ? (
+                <><Pause size={14} className="mr-1" /> {t("pause")}</>
+              ) : ttsState === "paused" ? (
+                <><Play size={14} className="mr-1" /> {t("resume")}</>
+              ) : (
+                <><Volume2 size={14} className="mr-1" /> {t("listen")}</>
+              )}
+            </Button>
+          )}
           {ttsState !== "idle" && (
             <Button
               type="button"
@@ -268,23 +303,25 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
           </Button>
         </div>
 
-        <div>
-          <p className="text-[11px] uppercase tracking-wide font-semibold text-zinc-500 mb-1">
-            {t("description")}
-          </p>
-          {translating ? (
-            <p className="text-sm text-zinc-500 inline-flex items-center gap-1">
-              <Loader2 size={14} className="animate-spin" /> {t("translating")}
+        {summaryDisplay && (
+          <div>
+            <p className="text-[11px] uppercase tracking-wide font-semibold text-zinc-500 mb-1">
+              {t("description")}
             </p>
-          ) : (
-            <p
-              data-testid="detail-summary"
-              className="text-[15px] text-zinc-800 leading-relaxed whitespace-pre-wrap"
-            >
-              {summaryDisplay}
-            </p>
-          )}
-        </div>
+            {translating ? (
+              <p className="text-sm text-zinc-500 inline-flex items-center gap-1">
+                <Loader2 size={14} className="animate-spin" /> {t("translating")}
+              </p>
+            ) : (
+              <p
+                data-testid="detail-summary"
+                className="text-[15px] text-zinc-800 leading-relaxed whitespace-pre-wrap"
+              >
+                {summaryDisplay}
+              </p>
+            )}
+          </div>
+        )}
 
         {item.sourceUrl && (
           <a
@@ -296,6 +333,12 @@ export default function ItemDetail({ item, onClose, favorites, onToggleFavorite 
           >
             {t("source")}: {item.sourceName} <ExternalLink size={13} />
           </a>
+        )}
+
+        {item.imageAttribution && hasImage && (
+          <p className="text-[10px] text-zinc-500">
+            {t("image_credit")}: {item.imageAttribution}
+          </p>
         )}
 
         <AskLocalerPanel item={item} />
