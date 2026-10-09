@@ -4,9 +4,10 @@ import { useI18n } from "@/context/I18nContext";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 
-export default function CategoryFilters({ active, onToggle, onAll }) {
+export default function CategoryFilters({ active, unavailable = new Set(), onToggle, onAll }) {
   const { lang, t } = useI18n();
-  const allOn = active.size === 0 || active.size === CATEGORIES.length;
+  const availableCount = CATEGORIES.filter((category) => !unavailable.has(category.key)).length;
+  const allOn = active.size === 0 || active.size === availableCount;
   const scrollerRef = useRef(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
@@ -71,16 +72,26 @@ export default function CategoryFilters({ active, onToggle, onAll }) {
         {CATEGORIES.map((c) => {
           const Icon = c.icon;
           const on = active.has(c.key);
+          const isUnavailable = unavailable.has(c.key);
           return (
             <Button
               type="button"
               key={c.key}
               data-testid={`cat-filter-${c.key}`}
               aria-pressed={on}
+              aria-label={
+                isUnavailable
+                  ? `${lang === "zh" ? c.labelZh : c.labelEn}: ${t("category_unavailable")}`
+                  : undefined
+              }
+              title={isUnavailable ? t("category_unavailable") : undefined}
+              disabled={isUnavailable}
               onClick={() => onToggle(c.key)}
               variant="secondary"
               className={`rounded-full h-9 px-3 shrink-0 border transition-colors ${
-                on
+                isUnavailable
+                  ? "bg-zinc-100/80 border-zinc-200 text-zinc-400 opacity-70"
+                  : on
                   ? "bg-white border-transparent shadow-sm"
                   : "bg-white/70 border-white/60 hover:bg-white"
               }`}

@@ -45,6 +45,7 @@ export default function Explore() {
   const [showMoveBtn, setShowMoveBtn] = useState(false);
 
   const [activeCats, setActiveCats] = useState(new Set(CATEGORIES.map((c) => c.key)));
+  const [unavailableCats, setUnavailableCats] = useState(new Set());
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -53,6 +54,40 @@ export default function Explore() {
 
   const reqIdRef = useRef(0);
   const nearbyAbortRef = useRef(null);
+
+  // Keep category controls honest about which real providers are configured.
+  // Failure to load this optional status must not block discovery.
+  useEffect(() => {
+    let cancelled = false;
+    contentApi
+      .providers()
+      .then((providers) => {
+        if (cancelled || !Array.isArray(providers)) return;
+        const available = new Set(
+          providers
+            .filter((provider) => provider.enabled)
+            .flatMap((provider) => provider.categories || [])
+        );
+        const unavailable = new Set(
+          CATEGORIES.map((category) => category.key).filter((key) => !available.has(key))
+        );
+        setUnavailableCats(unavailable);
+        if (unavailable.size > 0) {
+          setActiveCats((current) => {
+            const next = new Set([...current].filter((key) => !unavailable.has(key)));
+            if (next.size > 0) return next;
+            const configured = CATEGORIES.map((category) => category.key).filter(
+              (key) => !unavailable.has(key)
+            );
+            return configured.length > 0 ? new Set(configured) : current;
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Initial location
   useEffect(() => {
@@ -176,16 +211,24 @@ export default function Explore() {
   };
 
   const toggleCat = (key) => {
+    if (unavailableCats.has(key)) return;
     setActiveCats((s) => {
       const n = new Set(s);
       if (n.has(key)) n.delete(key);
       else n.add(key);
-      if (n.size === 0) return new Set(CATEGORIES.map((c) => c.key));
+      if (n.size === 0) {
+        return new Set(
+          CATEGORIES.map((c) => c.key).filter((category) => !unavailableCats.has(category))
+        );
+      }
       return n;
     });
   };
 
-  const allCats = () => setActiveCats(new Set(CATEGORIES.map((c) => c.key)));
+  const allCats = () =>
+    setActiveCats(
+      new Set(CATEGORIES.map((c) => c.key).filter((category) => !unavailableCats.has(category)))
+    );
 
   const onPickPlace = (p) => {
     setLocationDenied(false);
@@ -216,7 +259,12 @@ export default function Explore() {
         <SearchBar onPick={onPickPlace} onRecenter={onRecenter} />
       </div>
       <div className="px-3 pt-3 md:pt-1 pb-2 shrink-0 min-w-0">
-        <CategoryFilters active={activeCats} onToggle={toggleCat} onAll={allCats} />
+        <CategoryFilters
+          active={activeCats}
+          unavailable={unavailableCats}
+          onToggle={toggleCat}
+          onAll={allCats}
+        />
       </div>
       <div className="px-3 pb-2 flex items-center justify-between shrink-0">
         <div>
@@ -232,6 +280,15 @@ export default function Explore() {
           </p>
         </div>
       </div>
+      {unavailableCats.has("event") && (
+        <p
+          className="mx-3 mb-2 rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-xs text-amber-900"
+          role="status"
+          data-testid="events-unavailable-note"
+        >
+          {t("events_unavailable")}
+        </p>
+      )}
       <div
         className="flex-1 overflow-y-auto nice-scroll px-3 pb-20 md:pb-4 space-y-2"
         data-testid="nearby-list"

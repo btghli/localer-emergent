@@ -22,6 +22,7 @@ export const authApi = {
 };
 
 export const contentApi = {
+  providers: () => http.get("/providers").then((r) => r.data),
   nearby: (lat, lng, radius, cats, signal) =>
     http
       .get("/nearby", {
