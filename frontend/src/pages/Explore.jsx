@@ -170,7 +170,10 @@ export default function Explore() {
 
   const listNode = (
     <div className="flex flex-col h-full">
-      <div className="px-3 pt-3 pb-2 shrink-0">
+      <div className="px-3 pt-3 pb-2 shrink-0 hidden md:block">
+        <SearchBar onPick={onPickPlace} />
+      </div>
+      <div className="px-3 pt-3 md:pt-1 pb-2 shrink-0">
         <CategoryFilters active={activeCats} onToggle={toggleCat} onAll={allCats} />
       </div>
       <div className="px-3 pb-2 flex items-center justify-between shrink-0">
@@ -250,17 +253,14 @@ export default function Explore() {
         onBackgroundClick={() => {}}
       />
 
-      {/* Search bar — desktop centered-top, mobile top */}
-      <div className="hidden md:block fixed top-4 left-1/2 -translate-x-1/2 z-40 w-[520px] max-w-[90vw]">
-        <SearchBar onPick={onPickPlace} />
-      </div>
-      <div className="md:hidden fixed top-3 left-3 right-3 z-40">
+      {/* Search bar — desktop lives inside discovery panel; mobile floats at top */}
+      <div className="md:hidden fixed top-3 left-3 right-14 z-40">
         <SearchBar onPick={onPickPlace} />
       </div>
 
       {/* "Search this area" button */}
       {showMoveBtn && (
-        <div className="fixed top-20 md:top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-auto">
+        <div className="fixed top-16 md:top-20 left-1/2 md:left-[432px] -translate-x-1/2 md:translate-x-0 z-[45] pointer-events-auto">
           <Button
             type="button"
             onClick={onSearchArea}
@@ -297,7 +297,7 @@ export default function Explore() {
 
       {/* Location-denied banner */}
       {locationDenied && (
-        <div className="fixed top-16 md:top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+        <div className="fixed top-20 md:top-20 right-4 md:right-auto md:left-[432px] z-[44] pointer-events-auto">
           <div
             data-testid="location-denied-banner"
             className="max-w-sm bg-white/95 backdrop-blur-xl border border-amber-200 rounded-2xl shadow-lg px-4 py-3 text-sm text-zinc-800"
