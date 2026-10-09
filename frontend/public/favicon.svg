@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Localer">
+  <rect width="64" height="64" rx="18" fill="#18181b"/>
+  <path d="M32 12c-9.4 0-17 7.4-17 16.6C15 41 32 53 32 53s17-12 17-24.4C49 19.4 41.4 12 32 12Z" fill="#fff"/>
+  <circle cx="32" cy="29" r="7" fill="#f97316"/>
+  <path d="m48 10 1.4 4.1 4.1 1.4-4.1 1.4L48 21l-1.4-4.1-4.1-1.4 4.1-1.4L48 10Z" fill="#fbbf24"/>
+</svg>
