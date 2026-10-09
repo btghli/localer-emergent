@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Literal
 from datetime import datetime, timezone, timedelta
 import jwt
-from passlib.context import CryptContext
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
@@ -23,6 +22,7 @@ from providers.ticketmaster import TicketmasterProvider
 from providers.gdelt import GdeltNewsProvider
 from providers.geocoder import Geocoder
 from services.nearby import NearbyService
+from security import hash_password, verify_and_update_password
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -37,7 +37,6 @@ JWT_EXP_DAYS = 30
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
 
-pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer = HTTPBearer(auto_error=False)
 
 app = FastAPI(title="Localer API")
@@ -63,12 +62,12 @@ geocoder = Geocoder(db)
 class RegisterIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=100)
 
 
 class LoginIn(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=128)
 
 
 class User(BaseModel):
@@ -115,14 +114,6 @@ class FavoriteIn(BaseModel):
 
 # -------------------- Auth helpers --------------------
 
-def _hash_pw(pw: str) -> str:
-    return pwd_ctx.hash(pw)
-
-
-def _verify_pw(pw: str, hashed: str) -> bool:
-    return pwd_ctx.verify(pw, hashed)
-
-
 def _make_token(uid: str) -> str:
     return jwt.encode(
         {"sub": uid,
@@ -157,7 +148,7 @@ async def register(body: RegisterIn):
     await db.users.insert_one({
         "id": uid, "email": email, "name": body.name,
         "language": "en", "tts_voice": None,
-        "password_hash": _hash_pw(body.password),
+        "password_hash": hash_password(body.password),
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     user = User(id=uid, email=email, name=body.name, language="en")
@@ -168,8 +159,17 @@ async def register(body: RegisterIn):
 async def login(body: LoginIn):
     email = body.email.lower()
     doc = await db.users.find_one({"email": email})
-    if not doc or not _verify_pw(body.password, doc["password_hash"]):
+    valid = False
+    replacement_hash = None
+    if doc and doc.get("password_hash"):
+        valid, replacement_hash = verify_and_update_password(body.password, doc["password_hash"])
+    if not valid:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    if replacement_hash:
+        await db.users.update_one(
+            {"id": doc["id"], "password_hash": doc["password_hash"]},
+            {"$set": {"password_hash": replacement_hash}},
+        )
     user = User(
         id=doc["id"], email=doc["email"], name=doc.get("name"),
         language=doc.get("language", "en"), tts_voice=doc.get("tts_voice"),
